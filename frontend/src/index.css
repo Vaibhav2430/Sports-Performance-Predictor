@@ -69,6 +69,37 @@ body {
 }
 .logo span { color: var(--orange); }
 
+/* ── League toggle ───────────────────────── */
+.league-toggle {
+  display: flex;
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  padding: 3px;
+  gap: 2px;
+  margin-left: auto;
+}
+.league-btn {
+  padding: 5px 16px;
+  border-radius: 6px;
+  border: none;
+  background: none;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.league-btn:hover { color: var(--text); }
+.league-btn.active {
+  background: var(--orange);
+  color: #fff;
+}
+.league-btn.active.wnba {
+  background: #a855f7;
+}
+
 /* ── Shell (below header) ─────────────────── */
 .shell {
   display: flex;

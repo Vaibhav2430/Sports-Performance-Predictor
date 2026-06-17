@@ -7,16 +7,25 @@ import StatChart from './components/StatChart'
 import GameLogTable from './components/GameLogTable'
 
 export default function App() {
+  const [league, setLeague]   = useState('NBA')   // 'NBA' | 'WNBA'
   const [data, setData]       = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError]     = useState(null)
+
+  function switchLeague(l) {
+    if (l === league) return
+    setLeague(l)
+    setData(null)
+    setError(null)
+  }
 
   async function handleSearch(playerName) {
     setLoading(true)
     setError(null)
     setData(null)
+    const endpoint = league === 'WNBA' ? '/wnba/predict' : '/predict'
     try {
-      const res = await axios.get('/predict', { params: { player: playerName } })
+      const res = await axios.get(endpoint, { params: { player: playerName } })
       setData(res.data)
     } catch (err) {
       setError(err.response?.data?.detail ?? 'Player not found or no data available.')
@@ -30,66 +39,87 @@ export default function App() {
     : false
 
   const hasResults = data && !loading
+  const isWNBA     = league === 'WNBA'
 
   return (
     <>
-      {/* Fixed header — logo only */}
       <header className="header">
         <div className="logo">
           <div className="logo-icon">🏀</div>
           AI <span>Predicts</span>
         </div>
+
+        {/* League toggle */}
+        <div className="league-toggle">
+          <button
+            className={`league-btn ${league === 'NBA' ? 'active' : ''}`}
+            onClick={() => switchLeague('NBA')}
+          >
+            NBA
+          </button>
+          <button
+            className={`league-btn wnba ${league === 'WNBA' ? 'active' : ''}`}
+            onClick={() => switchLeague('WNBA')}
+          >
+            WNBA
+          </button>
+        </div>
       </header>
 
       <div className="shell">
-        {/* Left sidebar — today's games */}
-        <GamesSidebar />
+        <GamesSidebar league={league} />
 
-        {/* Main content */}
         <main className={`main ${hasResults ? '' : 'empty'}`}>
-
-          {/* Search section */}
           <div className="search-section">
             {!hasResults && (
               <div className="search-hero">
-                <h1>NBA Stat Predictor</h1>
+                <h1>{isWNBA ? 'WNBA' : 'NBA'} Stat Predictor</h1>
                 <p>AI projections for points, assists &amp; rebounds — next game.</p>
               </div>
             )}
-            <PlayerSearch onSearch={handleSearch} loading={loading} />
+            <PlayerSearch onSearch={handleSearch} loading={loading} league={league} />
             {error && <div className="error">⚠ {error}</div>}
           </div>
 
-          {/* Loading */}
           {loading && (
             <div className="loading">
               <div className="spinner" />
-              <span>Fetching game log &amp; training model… (~10s)</span>
+              <span>
+                {isWNBA
+                  ? 'Fetching WNBA game log & training model… (~15s)'
+                  : 'Fetching game log & training model… (~10s)'}
+              </span>
             </div>
           )}
 
-          {/* Results */}
           {hasResults && (
             <div className="results fade-in">
-              {/* Player banner */}
               <div className="player-banner">
                 <div className="player-left">
-                  <div className="player-avi">🏀</div>
+                  <div className="player-avi" style={isWNBA ? { background: 'linear-gradient(135deg,#a855f7,#ec4899)' } : {}}>
+                    🏀
+                  </div>
                   <div>
                     <div className="player-name">{data.player}</div>
                     <div className="player-sub">
+                      {data.team && <>{data.team} · </>}
                       {data.season} · {data.games_used} games analyzed
                     </div>
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 7 }}>
                   {isHot && <span className="badge badge-orange">🔥 Hot Streak</span>}
-                  <span className="badge badge-green">✓ AI Prediction</span>
+                  <span className="badge" style={isWNBA
+                    ? { background: 'rgba(168,85,247,0.12)', color: '#c084fc', border: '1px solid rgba(168,85,247,0.25)' }
+                    : { background: 'rgba(34,197,94,0.1)', color: 'var(--green)', border: '1px solid rgba(34,197,94,0.22)' }
+                  }>
+                    {isWNBA ? '♀ WNBA' : '✓ NBA'} · AI Prediction
+                  </span>
                 </div>
               </div>
 
               <div className="section-label">Next Game Projections</div>
-              <PropCards predictions={data.predictions} gameLog={data.game_log} />
+              <PropCards predictions={data.predictions} gameLog={data.game_log} league={league} />
 
               <div className="section-label">Performance Trend</div>
               <StatChart gameLog={data.game_log} predictions={data.predictions} />

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import axios from 'axios'
 
-export default function PlayerSearch({ onSearch, loading }) {
+export default function PlayerSearch({ onSearch, loading, league }) {
   const [query, setQuery]       = useState('')
   const [suggestions, setSugg]  = useState([])
   const [showSugg, setShowSugg] = useState(false)
@@ -12,7 +12,8 @@ export default function PlayerSearch({ onSearch, loading }) {
     clearTimeout(debounce.current)
     debounce.current = setTimeout(async () => {
       try {
-        const res = await axios.get('/search', { params: { q: query } })
+        const endpoint = league === 'WNBA' ? '/wnba/search' : '/search'
+        const res = await axios.get(endpoint, { params: { q: query } })
         setSugg(res.data)
         setShowSugg(true)
       } catch { setSugg([]) }
@@ -40,7 +41,7 @@ export default function PlayerSearch({ onSearch, loading }) {
           onKeyDown={e => e.key === 'Enter' && submit()}
           onFocus={() => suggestions.length && setShowSugg(true)}
           onBlur={() => setTimeout(() => setShowSugg(false), 150)}
-          placeholder="Search player — e.g. LeBron James, Steph Curry…"
+          placeholder={league === 'WNBA' ? 'Search player — e.g. Caitlin Clark, A\'ja Wilson…' : 'Search player — e.g. LeBron James, Steph Curry…'}
           disabled={loading}
           autoFocus
         />
