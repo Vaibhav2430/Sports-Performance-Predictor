@@ -1,13 +1,15 @@
 import { useEffect, useState } from 'react'
 import axios from 'axios'
 
-export default function GamesSidebar() {
+export default function GamesSidebar({ league }) {
   const [games, setGames]     = useState([])
   const [loading, setLoading] = useState(true)
 
   async function fetchGames() {
+    setLoading(true)
     try {
-      const res = await axios.get('/games/today')
+      const endpoint = league === 'WNBA' ? '/wnba/games/today' : '/games/today'
+      const res = await axios.get(endpoint)
       setGames(res.data)
     } catch {
       setGames([])
@@ -18,9 +20,9 @@ export default function GamesSidebar() {
 
   useEffect(() => {
     fetchGames()
-    const interval = setInterval(fetchGames, 30_000) // refresh every 30s
+    const interval = setInterval(fetchGames, 30000)
     return () => clearInterval(interval)
-  }, [])
+  }, [league])
 
   const hasLive = games.some(g => g.statusCode === 2)
 
@@ -29,7 +31,7 @@ export default function GamesSidebar() {
       <div className="sidebar-header">
         <div className="sidebar-title">
           {hasLive && <div className="live-dot" />}
-          Today's Games
+          {league === 'WNBA' ? 'WNBA' : 'NBA'} · Today's Games
         </div>
       </div>
 
