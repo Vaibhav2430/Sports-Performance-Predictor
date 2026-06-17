@@ -37,7 +37,7 @@ export default function App() {
       <header className="header">
         <div className="logo">
           <div className="logo-icon">🏀</div>
-          Props<span>AI</span>
+          AI <span>Predicts</span>
         </div>
       </header>
 
