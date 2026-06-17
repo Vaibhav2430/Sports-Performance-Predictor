@@ -6,8 +6,9 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      '/predict': 'http://localhost:8000',
-      '/search':  'http://localhost:8000',
+      '/predict':     'http://localhost:8000',
+      '/search':      'http://localhost:8000',
+      '/games/today': 'http://localhost:8000',
     },
   },
 })

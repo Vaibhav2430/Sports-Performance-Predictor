@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import axios from 'axios'
+import GamesSidebar from './components/GamesSidebar'
 import PlayerSearch from './components/PlayerSearch'
-import PredictionCard from './components/PredictionCard'
+import PropCards from './components/PropCards'
 import StatChart from './components/StatChart'
 import GameLogTable from './components/GameLogTable'
 
@@ -18,89 +19,87 @@ export default function App() {
       const res = await axios.get('/predict', { params: { player: playerName } })
       setData(res.data)
     } catch (err) {
-      setError(err.response?.data?.detail ?? 'Something went wrong. Try again.')
+      setError(err.response?.data?.detail ?? 'Player not found or no data available.')
     } finally {
       setLoading(false)
     }
   }
 
+  const isHot = data
+    ? data.predictions.PTS.last5_avg > data.predictions.PTS.season_avg
+    : false
+
+  const hasResults = data && !loading
+
   return (
-    <div>
-      {/* Header */}
-      <div style={{ marginBottom: 36 }}>
-        <h1>🏀 NBA Stat Predictor</h1>
-        <p style={{ color: 'var(--muted)', marginTop: 6, fontSize: '0.95rem' }}>
-          XGBoost predictions for points, assists &amp; rebounds — next game.
-        </p>
-      </div>
-
-      <PlayerSearch onSearch={handleSearch} loading={loading} />
-
-      {loading && (
-        <div style={{ textAlign: 'center', padding: '60px 0', color: 'var(--muted)' }}>
-          <Spinner />
-          <p style={{ marginTop: 16, fontSize: '0.9rem' }}>
-            Fetching game logs and training model…&nbsp;(~10s)
-          </p>
+    <>
+      {/* Fixed header — logo only */}
+      <header className="header">
+        <div className="logo">
+          <div className="logo-icon">🏀</div>
+          Props<span>AI</span>
         </div>
-      )}
+      </header>
 
-      {error && (
-        <div style={{
-          marginTop: 24,
-          background: '#2a1a1a',
-          border: '1px solid #5a2020',
-          borderRadius: 10,
-          padding: '14px 18px',
-          color: '#ff8080',
-          fontSize: '0.9rem',
-        }}>
-          {error}
-        </div>
-      )}
+      <div className="shell">
+        {/* Left sidebar — today's games */}
+        <GamesSidebar />
 
-      {data && !loading && (
-        <div style={{ marginTop: 32, display: 'flex', flexDirection: 'column', gap: 32 }}>
-          <div>
-            <h1 style={{ fontSize: '1.4rem' }}>{data.player}</h1>
-            <p style={{ color: 'var(--muted)', fontSize: '0.85rem', marginTop: 4 }}>
-              {data.season} season · {data.games_used} games · recent form weighted higher
-            </p>
+        {/* Main content */}
+        <main className={`main ${hasResults ? '' : 'empty'}`}>
+
+          {/* Search section */}
+          <div className="search-section">
+            {!hasResults && (
+              <div className="search-hero">
+                <h1>NBA Stat Predictor</h1>
+                <p>AI projections for points, assists &amp; rebounds — next game.</p>
+              </div>
+            )}
+            <PlayerSearch onSearch={handleSearch} loading={loading} />
+            {error && <div className="error">⚠ {error}</div>}
           </div>
 
-          <section>
-            <h2>Next Game Prediction</h2>
-            <PredictionCard predictions={data.predictions} />
-          </section>
-
-          <section>
-            <h2>Last 20 Games</h2>
-            <div className="card">
-              <StatChart gameLog={data.game_log} predictions={data.predictions} />
+          {/* Loading */}
+          {loading && (
+            <div className="loading">
+              <div className="spinner" />
+              <span>Fetching game log &amp; training model… (~10s)</span>
             </div>
-          </section>
+          )}
 
-          <section>
-            <h2>Game Log</h2>
-            <GameLogTable gameLog={data.game_log} />
-          </section>
-        </div>
-      )}
-    </div>
+          {/* Results */}
+          {hasResults && (
+            <div className="results fade-in">
+              {/* Player banner */}
+              <div className="player-banner">
+                <div className="player-left">
+                  <div className="player-avi">🏀</div>
+                  <div>
+                    <div className="player-name">{data.player}</div>
+                    <div className="player-sub">
+                      {data.season} · {data.games_used} games analyzed
+                    </div>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: 7 }}>
+                  {isHot && <span className="badge badge-orange">🔥 Hot Streak</span>}
+                  <span className="badge badge-green">✓ AI Prediction</span>
+                </div>
+              </div>
+
+              <div className="section-label">Next Game Projections</div>
+              <PropCards predictions={data.predictions} gameLog={data.game_log} />
+
+              <div className="section-label">Performance Trend</div>
+              <StatChart gameLog={data.game_log} predictions={data.predictions} />
+
+              <div className="section-label">Game Log</div>
+              <GameLogTable gameLog={data.game_log} predictions={data.predictions} />
+            </div>
+          )}
+        </main>
+      </div>
+    </>
   )
 }
-
-function Spinner() {
-  return (
-    <div style={{
-      width: 40, height: 40, border: '3px solid var(--border)',
-      borderTopColor: 'var(--accent)', borderRadius: '50%',
-      animation: 'spin 0.8s linear infinite', margin: '0 auto',
-    }} />
-  )
-}
-
-// inject keyframes once
-const style = document.createElement('style')
-style.textContent = '@keyframes spin { to { transform: rotate(360deg) } }'
-document.head.appendChild(style)

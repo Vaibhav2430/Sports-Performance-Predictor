@@ -1,6 +1,7 @@
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from nba_api.stats.static import players as nba_players
+from nba_api.live.nba.endpoints import scoreboard as live_scoreboard
 from model import predict, find_player
 
 app = FastAPI(title="NBA Stat Predictor API")
@@ -33,3 +34,37 @@ def search_endpoint(q: str = Query(..., min_length=2)):
         if q_lower in p["full_name"].lower()
     ]
     return sorted(matches)[:10]
+
+
+@app.get("/games/today")
+def games_today():
+    try:
+        board = live_scoreboard.ScoreBoard()
+        data  = board.get_dict()
+        games = data.get("scoreboard", {}).get("games", [])
+        result = []
+        for g in games:
+            home = g["homeTeam"]
+            away = g["awayTeam"]
+            result.append({
+                "gameId":     g["gameId"],
+                "status":     g["gameStatusText"].strip(),
+                "statusCode": g["gameStatus"],   # 1=scheduled 2=live 3=final
+                "home": {
+                    "tricode": home["teamTricode"],
+                    "name":    home["teamCity"] + " " + home["teamName"],
+                    "score":   home.get("score", 0) or 0,
+                    "wins":    home.get("wins", 0),
+                    "losses":  home.get("losses", 0),
+                },
+                "away": {
+                    "tricode": away["teamTricode"],
+                    "name":    away["teamCity"] + " " + away["teamName"],
+                    "score":   away.get("score", 0) or 0,
+                    "wins":    away.get("wins", 0),
+                    "losses":  away.get("losses", 0),
+                },
+            })
+        return result
+    except Exception:
+        return []

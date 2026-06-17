@@ -1,55 +1,39 @@
-const COL = [
-  { key: 'GAME_DATE', label: 'Date',    align: 'left'  },
-  { key: 'MATCHUP',   label: 'Matchup', align: 'left'  },
-  { key: 'WL',        label: 'W/L',     align: 'center'},
-  { key: 'MIN',       label: 'Min',     align: 'center'},
-  { key: 'PTS',       label: 'PTS',     align: 'center', color: 'var(--pts)' },
-  { key: 'AST',       label: 'AST',     align: 'center', color: 'var(--ast)' },
-  { key: 'REB',       label: 'REB',     align: 'center', color: 'var(--reb)' },
-]
-
-export default function GameLogTable({ gameLog }) {
+export default function GameLogTable({ gameLog, predictions }) {
   return (
-    <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
+    <div className="table-wrap">
+      <table>
         <thead>
-          <tr style={{ borderBottom: '1px solid var(--border)' }}>
-            {COL.map(c => (
-              <th key={c.key} style={{
-                padding: '12px 16px',
-                textAlign: c.align,
-                color: 'var(--muted)',
-                fontWeight: 500,
-                fontSize: '0.75rem',
-                textTransform: 'uppercase',
-                letterSpacing: '0.8px',
-              }}>
-                {c.label}
-              </th>
-            ))}
+          <tr>
+            <th style={{ textAlign: 'left'   }}>Date</th>
+            <th style={{ textAlign: 'left'   }}>Matchup</th>
+            <th style={{ textAlign: 'center' }}>W/L</th>
+            <th style={{ textAlign: 'center' }}>Min</th>
+            <th style={{ textAlign: 'center' }}>PTS</th>
+            <th style={{ textAlign: 'center' }}>AST</th>
+            <th style={{ textAlign: 'center' }}>REB</th>
           </tr>
         </thead>
         <tbody>
           {gameLog.map((row, i) => (
-            <tr
-              key={i}
-              style={{
-                borderBottom: i < gameLog.length - 1 ? '1px solid var(--border)' : 'none',
-                background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.02)',
-              }}
-            >
-              {COL.map(c => (
-                <td key={c.key} style={{
-                  padding: '11px 16px',
-                  textAlign: c.align,
-                  color: c.key === 'WL'
-                    ? row.WL === 'W' ? '#69db7c' : '#ff6b6b'
-                    : c.color ?? 'var(--text)',
-                  fontWeight: ['PTS','AST','REB'].includes(c.key) ? 600 : 400,
-                }}>
-                  {row[c.key]}
-                </td>
-              ))}
+            <tr key={i}>
+              <td className="td-muted">{row.GAME_DATE}</td>
+              <td style={{ fontWeight: 500, fontSize: '0.85rem' }}>{row.MATCHUP}</td>
+              <td className={row.WL === 'W' ? 'td-win' : 'td-loss'} style={{ textAlign: 'center' }}>
+                {row.WL}
+              </td>
+              <td className="td-muted" style={{ textAlign: 'center' }}>{row.MIN}</td>
+              <td className="td-pts" style={{ textAlign: 'center' }}>
+                {row.PTS}
+                {row.PTS > predictions.PTS.prediction && <sup style={{ color: '#22c55e', fontSize: '0.6rem', marginLeft: 2 }}>↑</sup>}
+              </td>
+              <td className="td-ast" style={{ textAlign: 'center' }}>
+                {row.AST}
+                {row.AST > predictions.AST.prediction && <sup style={{ color: '#22c55e', fontSize: '0.6rem', marginLeft: 2 }}>↑</sup>}
+              </td>
+              <td className="td-reb" style={{ textAlign: 'center' }}>
+                {row.REB}
+                {row.REB > predictions.REB.prediction && <sup style={{ color: '#22c55e', fontSize: '0.6rem', marginLeft: 2 }}>↑</sup>}
+              </td>
             </tr>
           ))}
         </tbody>
