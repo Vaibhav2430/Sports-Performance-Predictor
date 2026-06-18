@@ -1,8 +1,18 @@
 import time
+from datetime import date
 import requests
 import numpy as np
 import pandas as pd
 from xgboost import XGBRegressor
+
+
+def _current_wnba_season() -> str:
+    today = date.today()
+    return str(today.year) if 5 <= today.month <= 9 else str(today.year + 1)
+
+
+def _prev_wnba_season() -> str:
+    return str(int(_current_wnba_season()) - 1)
 
 STATS        = ["PTS", "AST", "REB"]
 FEATURE_COLS = [
@@ -10,6 +20,10 @@ FEATURE_COLS = [
     "ast_l5", "ast_l10",
     "reb_l5", "reb_l10",
     "min_l5", "home", "days_rest",
+    "opp_def_pts", "opp_off_pts",
+    "pts_home_avg", "pts_away_avg",
+    "ast_home_avg", "ast_away_avg",
+    "reb_home_avg", "reb_away_avg",
 ]
 
 ESPN_BASE    = "https://site.api.espn.com/apis/site/v2/sports/basketball/wnba"
@@ -28,6 +42,8 @@ def _build_player_cache() -> dict:
     for t in teams:
         tid   = t["team"]["id"]
         tname = t["team"]["displayName"]
+        tabbr = t["team"].get("abbreviation", "")
+        time.sleep(0.2)
         r = requests.get(f"{ESPN_BASE}/teams/{tid}/roster", timeout=10)
         if r.status_code == 200:
             for p in r.json().get("athletes", []):
@@ -36,8 +52,8 @@ def _build_player_cache() -> dict:
                     "id":        p["id"],
                     "full_name": p["displayName"],
                     "team":      tname,
+                    "team_abbr": tabbr,
                 }
-        time.sleep(0.2)
     _player_cache = cache
     return cache
 
@@ -59,8 +75,49 @@ def find_player(name: str) -> dict | None:
     return matches[0] if matches else None
 
 
-def fetch_game_log(player_id: str) -> pd.DataFrame:
-    r = requests.get(f"{ESPN_WEB}/athletes/{player_id}/gamelog", timeout=15)
+def fetch_wnba_team_stats() -> dict:
+    """Returns {team_abbr: {team_name, off_pts, def_pts, off_rank, def_rank}}."""
+    teams_r = requests.get(f"{ESPN_BASE}/teams", timeout=10)
+    teams   = teams_r.json()["sports"][0]["leagues"][0]["teams"]
+    raw: dict = {}
+    for t in teams:
+        team  = t["team"]
+        abbr  = team.get("abbreviation", "")
+        tid   = team["id"]
+        name  = team.get("displayName", abbr)
+        time.sleep(0.2)
+        try:
+            r = requests.get(f"{ESPN_BASE}/teams/{tid}/statistics", timeout=10)
+            if r.status_code != 200:
+                continue
+            flat: dict = {}
+            for cat in r.json().get("results", {}).get("stats", {}).get("categories", []):
+                for s in cat.get("stats", []):
+                    flat[s.get("name", "").lower()] = float(s.get("value", 0) or 0)
+            off_pts = (flat.get("avgpoints") or flat.get("pointspergame") or
+                       flat.get("avgpointspergame") or flat.get("scoringaverage"))
+            def_pts = (flat.get("avgpointsallowed") or flat.get("opponentpointspergame") or
+                       flat.get("defensiveavgpoints") or flat.get("pointsallowedpergame"))
+            if off_pts:
+                raw[abbr] = {"team_name": name, "off_pts": float(off_pts), "def_pts": float(def_pts or 0)}
+        except Exception:
+            continue
+
+    if not raw:
+        return {}
+
+    off_sorted = sorted(raw.keys(), key=lambda a: raw[a]["off_pts"], reverse=True)
+    def_sorted = sorted(raw.keys(), key=lambda a: raw[a]["def_pts"])
+    for rank, abbr in enumerate(off_sorted, 1):
+        raw[abbr]["off_rank"] = rank
+    for rank, abbr in enumerate(def_sorted, 1):
+        raw[abbr]["def_rank"] = rank
+    return raw
+
+
+def fetch_game_log(player_id: str, season: str = None) -> pd.DataFrame:
+    params = {"season": season} if season else {}
+    r = requests.get(f"{ESPN_WEB}/athletes/{player_id}/gamelog", params=params, timeout=15)
     r.raise_for_status()
     data = r.json()
 
@@ -130,21 +187,40 @@ def fetch_game_log(player_id: str) -> pd.DataFrame:
     return df
 
 
+def _home_away_avgs(hist: pd.DataFrame) -> dict:
+    home = hist[hist["HOME"] == 1]
+    away = hist[hist["HOME"] == 0]
+    fallback_pts = hist["PTS"].mean()
+    fallback_ast = hist["AST"].mean()
+    fallback_reb = hist["REB"].mean()
+    return {
+        "pts_home_avg": home["PTS"].mean() if len(home) else fallback_pts,
+        "pts_away_avg": away["PTS"].mean() if len(away) else fallback_pts,
+        "ast_home_avg": home["AST"].mean() if len(home) else fallback_ast,
+        "ast_away_avg": away["AST"].mean() if len(away) else fallback_ast,
+        "reb_home_avg": home["REB"].mean() if len(home) else fallback_reb,
+        "reb_away_avg": away["REB"].mean() if len(away) else fallback_reb,
+    }
+
+
 def _build_features(df: pd.DataFrame) -> pd.DataFrame:
     rows = []
     for i in range(10, len(df)):
         hist = df.iloc[:i]
         cur  = df.iloc[i]
         rows.append({
-            "pts_l5":   hist["PTS"].tail(5).mean(),
-            "pts_l10":  hist["PTS"].tail(10).mean(),
-            "ast_l5":   hist["AST"].tail(5).mean(),
-            "ast_l10":  hist["AST"].tail(10).mean(),
-            "reb_l5":   hist["REB"].tail(5).mean(),
-            "reb_l10":  hist["REB"].tail(10).mean(),
-            "min_l5":   hist["MIN"].tail(5).mean(),
-            "home":     cur["HOME"],
-            "days_rest": cur["DAYS_REST"],
+            "pts_l5":      hist["PTS"].tail(5).mean(),
+            "pts_l10":     hist["PTS"].tail(10).mean(),
+            "ast_l5":      hist["AST"].tail(5).mean(),
+            "ast_l10":     hist["AST"].tail(10).mean(),
+            "reb_l5":      hist["REB"].tail(5).mean(),
+            "reb_l10":     hist["REB"].tail(10).mean(),
+            "min_l5":      hist["MIN"].tail(5).mean(),
+            "home":        cur["HOME"],
+            "days_rest":   cur["DAYS_REST"],
+            "opp_def_pts": cur["OPP_DEF_PTS"],
+            "opp_off_pts": cur["OPP_OFF_PTS"],
+            **_home_away_avgs(hist),
             "PTS": cur["PTS"],
             "AST": cur["AST"],
             "REB": cur["REB"],
@@ -152,17 +228,20 @@ def _build_features(df: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def _next_features(df: pd.DataFrame) -> np.ndarray:
+def _next_features(df: pd.DataFrame, avg_def_pts: float, avg_off_pts: float) -> np.ndarray:
     feats = {
-        "pts_l5":   df["PTS"].tail(5).mean(),
-        "pts_l10":  df["PTS"].tail(10).mean(),
-        "ast_l5":   df["AST"].tail(5).mean(),
-        "ast_l10":  df["AST"].tail(10).mean(),
-        "reb_l5":   df["REB"].tail(5).mean(),
-        "reb_l10":  df["REB"].tail(10).mean(),
-        "min_l5":   df["MIN"].tail(5).mean(),
-        "home":     0.5,
-        "days_rest": 2.0,
+        "pts_l5":      df["PTS"].tail(5).mean(),
+        "pts_l10":     df["PTS"].tail(10).mean(),
+        "ast_l5":      df["AST"].tail(5).mean(),
+        "ast_l10":     df["AST"].tail(10).mean(),
+        "reb_l5":      df["REB"].tail(5).mean(),
+        "reb_l10":     df["REB"].tail(10).mean(),
+        "min_l5":      df["MIN"].tail(5).mean(),
+        "home":        0.5,
+        "days_rest":   2.0,
+        "opp_def_pts": avg_def_pts,
+        "opp_off_pts": avg_off_pts,
+        **_home_away_avgs(df),
     }
     return np.array([[feats[c] for c in FEATURE_COLS]])
 
@@ -173,49 +252,85 @@ def predict(player_name: str) -> dict:
         raise ValueError(f"WNBA player '{player_name}' not found.")
 
     df = fetch_game_log(player["id"])
+    current_season_n = len(df)
+    if current_season_n < 12:
+        df_prev = fetch_game_log(player["id"], season=_prev_wnba_season())
+        if not df_prev.empty:
+            df = pd.concat([df_prev, df], ignore_index=True)
+            df = df.dropna(subset=["GAME_DATE"]).sort_values("GAME_DATE").reset_index(drop=True)
+            df["DAYS_REST"] = df["GAME_DATE"].diff().dt.days.fillna(2).clip(0, 10)
     if len(df) < 12:
         raise ValueError(f"Not enough game data for {player['full_name']}.")
 
+    team_stats  = fetch_wnba_team_stats()
+    avg_def_pts = float(np.mean([v["def_pts"] for v in team_stats.values()])) if team_stats else 80.0
+    avg_off_pts = float(np.mean([v["off_pts"] for v in team_stats.values()])) if team_stats else 80.0
+
+    df["OPP_DEF_PTS"]  = df["MATCHUP"].apply(lambda x: team_stats.get(x, {}).get("def_pts",  avg_def_pts))
+    df["OPP_OFF_PTS"]  = df["MATCHUP"].apply(lambda x: team_stats.get(x, {}).get("off_pts",  avg_off_pts))
+    df["OPP_OFF_RANK"] = df["MATCHUP"].apply(lambda x: team_stats.get(x, {}).get("off_rank"))
+    df["OPP_DEF_RANK"] = df["MATCHUP"].apply(lambda x: team_stats.get(x, {}).get("def_rank"))
+
     feature_df = _build_features(df)
     X          = feature_df[FEATURE_COLS].values
-    X_next     = _next_features(df)
+    X_next     = _next_features(df, avg_def_pts, avg_off_pts)
     n          = len(X)
-    weights    = np.exp(np.linspace(0, 2, n))
+    weights    = np.ones(n)
+    weights[-10:] = 2.25
+
+    # Fewer training rows → fewer trees and shallower depth to prevent overfitting
+    n_estimators = max(30, min(150, n * 8))
+    max_depth    = 2 if n < 15 else 3
 
     predictions: dict = {}
     for stat in STATS:
         y = feature_df[stat].values
         model = XGBRegressor(
-            n_estimators=150, max_depth=3, learning_rate=0.08,
-            subsample=0.8, colsample_bytree=0.8, random_state=42, verbosity=0,
+            n_estimators=n_estimators,
+            max_depth=max_depth,
+            learning_rate=0.08,
+            subsample=0.8,
+            colsample_bytree=0.8,
+            reg_lambda=5.0 if n < 15 else 1.0,
+            random_state=42,
+            verbosity=0,
         )
         model.fit(X, y, sample_weight=weights)
-        pred = max(0.0, float(model.predict(X_next)[0]))
-        std  = float(df[stat].tail(10).std())
+        pred       = max(0.0, float(model.predict(X_next)[0]))
+        curr_games = df[stat].tail(current_season_n) if current_season_n > 0 else df[stat]
+        season_avg = float(curr_games.mean())
+        std        = float(curr_games.std())
+        pred       = min(pred, season_avg + std)
+
         predictions[stat] = {
             "prediction": round(pred, 1),
             "floor":      round(max(0.0, pred - std), 1),
             "ceiling":    round(pred + std, 1),
             "last5_avg":  round(float(df[stat].tail(5).mean()), 1),
-            "season_avg": round(float(df[stat].mean()), 1),
+            "season_avg": round(season_avg, 1),
         }
 
     game_log = (
-        df.tail(20)[["GAME_DATE", "MATCHUP", "HOME", "MIN", "PTS", "AST", "REB"]]
+        df.tail(20)[["GAME_DATE", "MATCHUP", "HOME", "MIN", "PTS", "AST", "REB", "OPP_OFF_RANK", "OPP_DEF_RANK"]]
         .copy().iloc[::-1].reset_index(drop=True)
     )
     game_log["GAME_DATE"] = game_log["GAME_DATE"].dt.strftime("%Y-%m-%d")
     game_log["WL"]        = ""
     game_log["MIN"]       = game_log["MIN"].round(0).astype(int)
+    game_log = game_log.rename(columns={"MATCHUP": "OPP_ABBR"})
 
+    player_team_info = team_stats.get(player.get("team_abbr", ""), {})
     return {
-        "player":      player["full_name"],
-        "team":        player["team"],
-        "league":      "WNBA",
-        "season":      "2026",
-        "games_used":  len(df),
-        "predictions": predictions,
-        "game_log":    game_log[["GAME_DATE", "MATCHUP", "WL", "MIN", "PTS", "AST", "REB"]].to_dict(orient="records"),
+        "player":        player["full_name"],
+        "team":          player["team"],
+        "team_abbr":     player.get("team_abbr", ""),
+        "team_off_rank": player_team_info.get("off_rank"),
+        "team_def_rank": player_team_info.get("def_rank"),
+        "league":        "WNBA",
+        "season":        _current_wnba_season(),
+        "games_used":    len(df),
+        "predictions":   predictions,
+        "game_log":      game_log[["GAME_DATE", "OPP_ABBR", "WL", "MIN", "PTS", "AST", "REB", "OPP_OFF_RANK", "OPP_DEF_RANK"]].to_dict(orient="records"),
     }
 
 
