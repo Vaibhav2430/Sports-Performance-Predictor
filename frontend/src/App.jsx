@@ -41,6 +41,23 @@ export default function App() {
   const hasResults = data && !loading
   const isWNBA     = league === 'WNBA'
 
+  const NBA_ESPN_MAP = { GSW: 'gs', SAS: 'sa', NYK: 'ny', NOP: 'no', UTA: 'utah' }
+  function teamLogoUrl() {
+    if (!data) return null
+    const abbr = isWNBA ? data.team_abbr : data.team
+    if (!abbr) return null
+    if (isWNBA) return `https://a.espncdn.com/i/teamlogos/wnba/500/${abbr.toLowerCase()}.png`
+    const espn = NBA_ESPN_MAP[abbr] ?? abbr.toLowerCase()
+    return `https://a.espncdn.com/i/teamlogos/nba/500/${espn}.png`
+  }
+
+  function rankClass(rank) {
+    if (!rank) return 'rank-mid'
+    if (rank <= 10) return 'rank-good'
+    if (rank >= 21) return 'rank-bad'
+    return 'rank-mid'
+  }
+
   return (
     <>
       <header className="header">
@@ -97,13 +114,21 @@ export default function App() {
               <div className="player-banner">
                 <div className="player-left">
                   <div className="player-avi" style={isWNBA ? { background: 'linear-gradient(135deg,#a855f7,#ec4899)' } : {}}>
-                    🏀
+                    {teamLogoUrl()
+                      ? <img src={teamLogoUrl()} alt={data.team} style={{ width: '85%', height: '85%', objectFit: 'contain' }} />
+                      : '🏀'}
                   </div>
                   <div>
                     <div className="player-name">{data.player}</div>
                     <div className="player-sub">
-                      {data.team && <>{data.team} · </>}
-                      {data.season} · {data.games_used} games analyzed
+                      {data.team_name ?? data.team}
+                      {data.team_off_rank != null && (
+                        <span className={`rank-badge ${rankClass(data.team_off_rank)}`}>OFF #{data.team_off_rank}</span>
+                      )}
+                      {data.team_def_rank != null && (
+                        <span className={`rank-badge ${rankClass(data.team_def_rank)}`}>DEF #{data.team_def_rank}</span>
+                      )}
+                      {' · '}{data.season} · {data.games_used} games analyzed
                     </div>
                   </div>
                 </div>
@@ -125,7 +150,7 @@ export default function App() {
               <StatChart gameLog={data.game_log} predictions={data.predictions} />
 
               <div className="section-label">Game Log</div>
-              <GameLogTable gameLog={data.game_log} predictions={data.predictions} />
+              <GameLogTable gameLog={data.game_log} predictions={data.predictions} league={league} />
             </div>
           )}
         </main>

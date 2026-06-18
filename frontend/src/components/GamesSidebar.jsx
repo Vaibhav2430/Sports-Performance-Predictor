@@ -1,6 +1,15 @@
 import { useEffect, useState } from 'react'
 import axios from 'axios'
 
+const NBA_ESPN_MAP = { GSW: 'gs', SAS: 'sa', NYK: 'ny', NOP: 'no', UTA: 'utah' }
+
+function teamLogo(tricode, isWNBA) {
+  if (!tricode) return null
+  if (isWNBA) return `https://a.espncdn.com/i/teamlogos/wnba/500/${tricode.toLowerCase()}.png`
+  const espn = NBA_ESPN_MAP[tricode] ?? tricode.toLowerCase()
+  return `https://a.espncdn.com/i/teamlogos/nba/500/${espn}.png`
+}
+
 export default function GamesSidebar({ league }) {
   const [games, setGames]     = useState([])
   const [loading, setLoading] = useState(true)
@@ -44,15 +53,22 @@ export default function GamesSidebar({ league }) {
       )}
 
       {games.map(g => {
-        const isLive  = g.statusCode === 2
-        const isFinal = g.statusCode === 3
+        const isLive    = g.statusCode === 2
+        const isFinal   = g.statusCode === 3
         const statusCls = isLive ? 'live' : isFinal ? 'final' : 'sched'
+        const isWNBA    = league === 'WNBA'
 
         return (
           <div key={g.gameId} className={`game-card ${statusCls}`}>
             <div className="game-teams">
               {/* Away */}
               <div className="game-team">
+                <img
+                  src={teamLogo(g.away.tricode, isWNBA)}
+                  alt={g.away.tricode}
+                  className="sidebar-team-logo"
+                  onError={e => { e.target.style.visibility = 'hidden' }}
+                />
                 <div className="team-tricode">{g.away.tricode}</div>
                 <div className="team-record">{g.away.wins}–{g.away.losses}</div>
               </div>
@@ -76,6 +92,12 @@ export default function GamesSidebar({ league }) {
 
               {/* Home */}
               <div className="game-team">
+                <img
+                  src={teamLogo(g.home.tricode, isWNBA)}
+                  alt={g.home.tricode}
+                  className="sidebar-team-logo"
+                  onError={e => { e.target.style.visibility = 'hidden' }}
+                />
                 <div className="team-tricode">{g.home.tricode}</div>
                 <div className="team-record">{g.home.wins}–{g.home.losses}</div>
               </div>

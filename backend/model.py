@@ -1,18 +1,67 @@
 import time
+from datetime import date
 import numpy as np
 import pandas as pd
-from nba_api.stats.endpoints import playergamelog
+from nba_api.stats.endpoints import playergamelog, leaguedashteamstats
 from nba_api.stats.static import players as nba_players
 from xgboost import XGBRegressor
 
 STATS = ["PTS", "AST", "REB"]
-CURRENT_SEASON = "2024-25"
+
+
+def _current_nba_season() -> str:
+    today = date.today()
+    start_year = today.year if today.month >= 10 else today.year - 1
+    return f"{start_year}-{str(start_year + 1)[-2:]}"
+
+
+def _prev_nba_season() -> str:
+    today = date.today()
+    start_year = today.year if today.month >= 10 else today.year - 1
+    prev = start_year - 1
+    return f"{prev}-{str(prev + 1)[-2:]}"
+
+
+CURRENT_SEASON = _current_nba_season()
 FEATURE_COLS = [
     "pts_l5", "pts_l10",
     "ast_l5", "ast_l10",
     "reb_l5", "reb_l10",
     "min_l5", "home", "days_rest",
+    "opp_def_rtg", "opp_pace",
+    "pts_home_avg", "pts_away_avg",
+    "ast_home_avg", "ast_away_avg",
+    "reb_home_avg", "reb_away_avg",
 ]
+
+
+def fetch_team_defense_stats() -> dict:
+    time.sleep(0.65)
+    stats = leaguedashteamstats.LeagueDashTeamStats(
+        season=CURRENT_SEASON,
+        measure_type_detailed_defense="Advanced",
+        per_mode_simple="PerGame",
+    )
+    df = stats.get_data_frames()[0].copy()
+    df["off_rank"] = df["OFF_RATING"].rank(ascending=False, method="min").astype(int)
+    df["def_rank"] = df["DEF_RATING"].rank(ascending=True,  method="min").astype(int)
+    return {
+        row["TEAM_ABBREVIATION"]: {
+            "team_name": row["TEAM_NAME"],
+            "def_rtg":   float(row["DEF_RATING"]),
+            "pace":      float(row["PACE"]),
+            "off_rtg":   float(row["OFF_RATING"]),
+            "off_rank":  int(row["off_rank"]),
+            "def_rank":  int(row["def_rank"]),
+        }
+        for _, row in df.iterrows()
+    }
+
+
+def _parse_opponent(matchup: str) -> str:
+    # MATCHUP is always "TEAM vs. OPP" or "TEAM @ OPP"
+    sep = " vs. " if " vs. " in matchup else " @ "
+    return matchup.split(sep)[1].strip()
 
 
 def find_player(name: str) -> dict | None:
@@ -25,9 +74,9 @@ def find_player(name: str) -> dict | None:
     return partial[0] if partial else None
 
 
-def fetch_game_log(player_id: int) -> pd.DataFrame:
+def fetch_game_log(player_id: int, season: str = CURRENT_SEASON) -> pd.DataFrame:
     time.sleep(0.65)
-    log = playergamelog.PlayerGameLog(player_id=player_id, season=CURRENT_SEASON)
+    log = playergamelog.PlayerGameLog(player_id=player_id, season=season)
     df = log.get_data_frames()[0]
     if df.empty:
         return pd.DataFrame()
@@ -40,6 +89,22 @@ def fetch_game_log(player_id: int) -> pd.DataFrame:
     df["HOME"] = df["MATCHUP"].apply(lambda x: 0 if "@" in x else 1)
     df["DAYS_REST"] = df["GAME_DATE"].diff().dt.days.fillna(2).clip(0, 10)
     return df
+
+
+def _home_away_avgs(hist: pd.DataFrame) -> dict:
+    home = hist[hist["HOME"] == 1]
+    away = hist[hist["HOME"] == 0]
+    fallback_pts = hist["PTS"].mean()
+    fallback_ast = hist["AST"].mean()
+    fallback_reb = hist["REB"].mean()
+    return {
+        "pts_home_avg": home["PTS"].mean() if len(home) else fallback_pts,
+        "pts_away_avg": away["PTS"].mean() if len(away) else fallback_pts,
+        "ast_home_avg": home["AST"].mean() if len(home) else fallback_ast,
+        "ast_away_avg": away["AST"].mean() if len(away) else fallback_ast,
+        "reb_home_avg": home["REB"].mean() if len(home) else fallback_reb,
+        "reb_away_avg": away["REB"].mean() if len(away) else fallback_reb,
+    }
 
 
 def _build_features(df: pd.DataFrame) -> pd.DataFrame:
@@ -55,8 +120,11 @@ def _build_features(df: pd.DataFrame) -> pd.DataFrame:
             "reb_l5":  hist["REB"].tail(5).mean(),
             "reb_l10": hist["REB"].tail(10).mean(),
             "min_l5":  hist["MIN"].tail(5).mean(),
-            "home":      cur["HOME"],
-            "days_rest": cur["DAYS_REST"],
+            "home":        cur["HOME"],
+            "days_rest":   cur["DAYS_REST"],
+            "opp_def_rtg": cur["OPP_DEF_RTG"],
+            "opp_pace":    cur["OPP_PACE"],
+            **_home_away_avgs(hist),
             "PTS": cur["PTS"],
             "AST": cur["AST"],
             "REB": cur["REB"],
@@ -65,17 +133,20 @@ def _build_features(df: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def _next_features(df: pd.DataFrame) -> np.ndarray:
+def _next_features(df: pd.DataFrame, avg_def_rtg: float, avg_pace: float) -> np.ndarray:
     feats = {
-        "pts_l5":   df["PTS"].tail(5).mean(),
-        "pts_l10":  df["PTS"].tail(10).mean(),
-        "ast_l5":   df["AST"].tail(5).mean(),
-        "ast_l10":  df["AST"].tail(10).mean(),
-        "reb_l5":   df["REB"].tail(5).mean(),
-        "reb_l10":  df["REB"].tail(10).mean(),
-        "min_l5":   df["MIN"].tail(5).mean(),
-        "home":     0.5,
-        "days_rest": 2.0,
+        "pts_l5":      df["PTS"].tail(5).mean(),
+        "pts_l10":     df["PTS"].tail(10).mean(),
+        "ast_l5":      df["AST"].tail(5).mean(),
+        "ast_l10":     df["AST"].tail(10).mean(),
+        "reb_l5":      df["REB"].tail(5).mean(),
+        "reb_l10":     df["REB"].tail(10).mean(),
+        "min_l5":      df["MIN"].tail(5).mean(),
+        "home":        0.5,
+        "days_rest":   2.0,
+        "opp_def_rtg": avg_def_rtg,
+        "opp_pace":    avg_pace,
+        **_home_away_avgs(df),
     }
     return np.array([[feats[c] for c in FEATURE_COLS]])
 
@@ -86,56 +157,87 @@ def predict(player_name: str) -> dict:
         raise ValueError(f"Player '{player_name}' not found.")
 
     df = fetch_game_log(player["id"])
+    current_season_n = len(df)
+    if current_season_n < 15:
+        df_prev = fetch_game_log(player["id"], season=_prev_nba_season())
+        if not df_prev.empty:
+            df = pd.concat([df_prev, df], ignore_index=True)
+            df = df.sort_values("GAME_DATE").reset_index(drop=True)
+            df["DAYS_REST"] = df["GAME_DATE"].diff().dt.days.fillna(2).clip(0, 10)
     if len(df) < 15:
         raise ValueError(f"Not enough game data for {player['full_name']}.")
 
+    team_stats  = fetch_team_defense_stats()
+    avg_def_rtg = float(np.mean([v["def_rtg"] for v in team_stats.values()]))
+    avg_pace    = float(np.mean([v["pace"]    for v in team_stats.values()]))
+
+    player_team_abbr = df["MATCHUP"].iloc[-1].split(" ")[0]
+    player_team_info = team_stats.get(player_team_abbr, {})
+
+    df["OPP"]          = df["MATCHUP"].apply(_parse_opponent)
+    df["OPP_DEF_RTG"]  = df["OPP"].apply(lambda x: team_stats.get(x, {}).get("def_rtg",  avg_def_rtg))
+    df["OPP_PACE"]     = df["OPP"].apply(lambda x: team_stats.get(x, {}).get("pace",     avg_pace))
+    df["OPP_OFF_RANK"] = df["OPP"].apply(lambda x: team_stats.get(x, {}).get("off_rank"))
+    df["OPP_DEF_RANK"] = df["OPP"].apply(lambda x: team_stats.get(x, {}).get("def_rank"))
+
     feature_df = _build_features(df)
     X = feature_df[FEATURE_COLS].values
-    X_next = _next_features(df)
+    X_next = _next_features(df, avg_def_rtg, avg_pace)
 
-    # Exponential weights: oldest game ~1x, most recent game ~7x
     n = len(X)
-    sample_weights = np.exp(np.linspace(0, 2, n))
+    sample_weights = np.ones(n)
+    sample_weights[-10:] = 2.25
+
+    # Fewer training rows → fewer trees and shallower depth to prevent overfitting
+    n_estimators = max(30, min(150, n * 8))
+    max_depth    = 2 if n < 15 else 3
 
     predictions: dict = {}
     for stat in STATS:
         y = feature_df[stat].values
         model = XGBRegressor(
-            n_estimators=150,
-            max_depth=3,
+            n_estimators=n_estimators,
+            max_depth=max_depth,
             learning_rate=0.08,
             subsample=0.8,
             colsample_bytree=0.8,
+            reg_lambda=5.0 if n < 15 else 1.0,
             random_state=42,
             verbosity=0,
         )
         model.fit(X, y, sample_weight=sample_weights)
-        pred = float(model.predict(X_next)[0])
-        pred = max(0.0, pred)
+        pred       = max(0.0, float(model.predict(X_next)[0]))
+        curr_games = df[stat].tail(current_season_n) if current_season_n > 0 else df[stat]
+        season_avg = float(curr_games.mean())
+        std        = float(curr_games.std())
+        pred       = min(pred, season_avg + std)
 
-        recent = df[stat].tail(10)
-        std = float(recent.std())
         predictions[stat] = {
             "prediction": round(pred, 1),
             "floor":      round(max(0.0, pred - std), 1),
             "ceiling":    round(pred + std, 1),
             "last5_avg":  round(float(df[stat].tail(5).mean()), 1),
-            "season_avg": round(float(df[stat].mean()), 1),
+            "season_avg": round(season_avg, 1),
         }
 
     game_log = (
-        df.tail(20)[["GAME_DATE", "MATCHUP", "WL", "MIN", "PTS", "AST", "REB"]]
+        df.tail(20)[["GAME_DATE", "MATCHUP", "WL", "MIN", "PTS", "AST", "REB", "OPP", "OPP_OFF_RANK", "OPP_DEF_RANK"]]
         .copy()
         .iloc[::-1]
         .reset_index(drop=True)
     )
     game_log["GAME_DATE"] = game_log["GAME_DATE"].dt.strftime("%Y-%m-%d")
     game_log["MIN"] = game_log["MIN"].round(0).astype(int)
+    game_log = game_log.rename(columns={"OPP": "OPP_ABBR"})
 
     return {
-        "player":      player["full_name"],
-        "season":      CURRENT_SEASON,
-        "games_used":  len(df),
-        "predictions": predictions,
-        "game_log":    game_log.to_dict(orient="records"),
+        "player":        player["full_name"],
+        "team":          player_team_abbr,
+        "team_name":     player_team_info.get("team_name", player_team_abbr),
+        "team_off_rank": player_team_info.get("off_rank"),
+        "team_def_rank": player_team_info.get("def_rank"),
+        "season":        CURRENT_SEASON,
+        "games_used":    len(df),
+        "predictions":   predictions,
+        "game_log":      game_log.to_dict(orient="records"),
     }
