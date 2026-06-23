@@ -5,6 +5,7 @@ import PlayerSearch from './components/PlayerSearch'
 import PropCards from './components/PropCards'
 import StatChart from './components/StatChart'
 import GameLogTable from './components/GameLogTable'
+import AccuracyPanel from './components/AccuracyPanel'
 
 export default function App() {
   const [league, setLeague]   = useState('NBA')   // 'NBA' | 'WNBA'
@@ -63,6 +64,8 @@ export default function App() {
           <div className="logo-icon">🏀</div>
           AI <span>Predicts</span>
         </div>
+
+        <AccuracyPanel />
 
         {/* League toggle */}
         <div className="league-toggle">
@@ -133,7 +136,7 @@ export default function App() {
               </div>
 
               <div className="section-label">Next Game Projections</div>
-              <PropCards predictions={data.predictions} gameLog={data.game_log} league={league} />
+              <PropCards predictions={data.predictions} gameLog={data.game_log} league={league} lines={data.lines ?? {}} />
 
               <div className="section-label">Performance Trend</div>
               <StatChart gameLog={data.game_log} predictions={data.predictions} />

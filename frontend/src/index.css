@@ -69,6 +69,72 @@ body {
 }
 .logo span { color: var(--orange); }
 
+/* ── Accuracy panel ─────────────────────── */
+.acc-wrap {
+  position: relative;
+  margin-left: auto;
+}
+.acc-trigger {
+  display: flex; align-items: center; gap: 5px;
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  padding: 5px 12px;
+  color: var(--muted);
+  font-size: 0.78rem; font-weight: 700;
+  cursor: pointer; transition: color 0.15s, border-color 0.15s;
+}
+.acc-trigger:hover { color: var(--text); border-color: var(--muted); }
+.acc-trigger-icon { font-size: 0.85rem; }
+.acc-panel {
+  position: absolute; top: calc(100% + 8px); right: 0;
+  width: 260px;
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: var(--r);
+  padding: 16px;
+  z-index: 300;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+}
+.acc-panel-title {
+  font-size: 0.65rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 1.2px;
+  color: var(--muted); margin-bottom: 12px;
+}
+.acc-spinner {
+  width: 20px; height: 20px; border-radius: 50%;
+  border: 2px solid var(--border2);
+  border-top-color: var(--orange);
+  animation: spin 0.7s linear infinite;
+  margin: 8px auto;
+}
+.acc-empty {
+  font-size: 0.75rem; color: var(--muted);
+  text-align: center; line-height: 1.6; padding: 4px 0;
+}
+.acc-overall {
+  display: flex; align-items: baseline; gap: 8px; margin-bottom: 14px;
+}
+.acc-big-pct { font-size: 2rem; font-weight: 900; line-height: 1; }
+.acc-overall-sub { font-size: 0.72rem; color: var(--muted); }
+.acc-stat-rows { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
+.acc-stat-row {
+  display: grid;
+  grid-template-columns: 56px 1fr 36px 40px;
+  align-items: center; gap: 6px;
+}
+.acc-stat-name { font-size: 0.68rem; font-weight: 700; color: var(--muted); }
+.acc-bar-wrap {
+  height: 4px; background: var(--border2); border-radius: 99px; overflow: hidden;
+}
+.acc-bar { height: 100%; border-radius: 99px; transition: width 0.4s; }
+.acc-stat-pct { font-size: 0.72rem; font-weight: 700; text-align: right; }
+.acc-stat-n   { font-size: 0.62rem; color: var(--muted); }
+.acc-pending {
+  font-size: 0.62rem; color: var(--muted); border-top: 1px solid var(--border);
+  padding-top: 8px; margin-top: 4px;
+}
+
 /* ── League toggle ───────────────────────── */
 .league-toggle {
   display: flex;
@@ -467,8 +533,29 @@ body {
 .prop-sublabel {
   font-size: 0.62rem; font-weight: 600;
   text-transform: uppercase; letter-spacing: 1px;
-  color: var(--muted2); margin-bottom: 16px;
+  color: var(--muted2); margin-bottom: 10px;
 }
+
+.pp-line {
+  display: flex; align-items: center; gap: 5px;
+  margin-bottom: 12px; flex-wrap: wrap;
+}
+.pp-label {
+  font-size: 0.58rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 1px;
+  color: var(--muted); margin-right: 1px;
+}
+.pp-badge {
+  font-size: 0.6rem; font-weight: 800;
+  text-transform: uppercase; letter-spacing: 0.7px;
+  padding: 2px 6px; border-radius: 4px;
+}
+.pp-badge.over  { background: rgba(34,197,94,0.15);  color: var(--green); }
+.pp-badge.under { background: rgba(239,68,68,0.13);  color: #f87171; }
+.pp-score { font-size: 0.78rem; font-weight: 700; color: var(--text); }
+.pp-edge  { font-size: 0.7rem;  font-weight: 700; }
+.pp-edge.pos { color: var(--green); }
+.pp-edge.neg { color: #f87171; }
 
 .range-track {
   position: relative; height: 3px;

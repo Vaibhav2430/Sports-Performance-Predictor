@@ -1,9 +1,12 @@
+import pandas as pd
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from nba_api.stats.static import players as nba_players
 from nba_api.live.nba.endpoints import scoreboard as live_scoreboard
-from model import predict
+from model import predict, find_player as nba_find_player, fetch_game_log as nba_fetch_game_log
 import wnba_model
+import odds
+import tracker
 
 app = FastAPI(title="NBA Stat Predictor API")
 
@@ -19,7 +22,13 @@ app.add_middleware(
 @app.get("/predict")
 def predict_endpoint(player: str = Query(..., description="Player full name")):
     try:
-        return predict(player)
+        result = predict(player)
+        lines = odds.get_player_lines(player, "NBA")
+        result["lines"] = lines
+        p = nba_find_player(player)
+        if p:
+            tracker.log_prediction(player, p["id"], "NBA", lines, result["predictions"])
+        return result
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
@@ -44,7 +53,13 @@ def wnba_search(q: str = Query(default="")):
 @app.get("/wnba/predict")
 def wnba_predict(player: str = Query(...)):
     try:
-        return wnba_model.predict(player)
+        result = wnba_model.predict(player)
+        lines = odds.get_player_lines(player, "WNBA")
+        result["lines"] = lines
+        p = wnba_model.find_player(player)
+        if p:
+            tracker.log_prediction(player, p["id"], "WNBA", lines, result["predictions"])
+        return result
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
@@ -54,6 +69,57 @@ def wnba_predict(player: str = Query(...)):
 @app.get("/wnba/games/today")
 def wnba_games_today():
     return wnba_model.games_today()
+
+
+@app.get("/accuracy")
+def accuracy_endpoint():
+    from datetime import date
+    log = tracker.load_log()
+    today = str(date.today())
+    changed = False
+
+    for entry in log:
+        if entry.get("resolved"):
+            continue
+        if entry["date"] >= today:
+            continue  # Game may not have been played yet
+
+        try:
+            if entry["league"] == "NBA":
+                p = nba_find_player(entry["player"])
+                if not p:
+                    continue
+                df = nba_fetch_game_log(p["id"])
+            else:
+                p = wnba_model.find_player(entry["player"])
+                if not p:
+                    continue
+                df = wnba_model.fetch_game_log(p["id"])
+
+            if df.empty:
+                continue
+
+            pred_date = pd.Timestamp(entry["date"])
+            future = df[df["GAME_DATE"] >= pred_date]
+            if future.empty:
+                continue  # No game found yet on or after prediction date
+
+            game = future.iloc[0]
+            actual = {
+                stat: float(game[stat])
+                for stat in entry.get("lines", {})
+                if stat in game.index
+            }
+            if actual:
+                tracker.mark_resolved(entry, actual)
+                changed = True
+        except Exception:
+            continue
+
+    if changed:
+        tracker.save_log(log)
+
+    return tracker.compute_stats(log)
 
 
 @app.get("/games/today")

@@ -1,0 +1,18 @@
+[
+  {
+    "player": "A'ja Wilson",
+    "player_id": "3149391",
+    "league": "WNBA",
+    "date": "2026-06-23",
+    "lines": {
+      "PTS": 25.5,
+      "REB": 9.5
+    },
+    "predicted": {
+      "PTS": 31.9,
+      "REB": 10.8
+    },
+    "actual": {},
+    "resolved": false
+  }
+]
