@@ -3,7 +3,7 @@ from datetime import date
 import numpy as np
 import pandas as pd
 from nba_api.stats.endpoints import playergamelog, leaguedashteamstats
-from nba_api.stats.static import players as nba_players
+from nba_api.stats.static import players as nba_players, teams as nba_teams
 from xgboost import XGBRegressor
 
 STATS = ["PTS", "AST", "REB"]
@@ -36,13 +36,15 @@ FEATURE_COLS = [
 
 
 def fetch_team_defense_stats() -> dict:
+    id_to_abbr = {t["id"]: t["abbreviation"] for t in nba_teams.get_teams()}
     time.sleep(0.65)
     stats = leaguedashteamstats.LeagueDashTeamStats(
         season=CURRENT_SEASON,
         measure_type_detailed_defense="Advanced",
-        per_mode_simple="PerGame",
+        per_mode_detailed="PerGame",
     )
     df = stats.get_data_frames()[0].copy()
+    df["TEAM_ABBREVIATION"] = df["TEAM_ID"].map(id_to_abbr)
     df["off_rank"] = df["OFF_RATING"].rank(ascending=False, method="min").astype(int)
     df["def_rank"] = df["DEF_RATING"].rank(ascending=True,  method="min").astype(int)
     return {
@@ -55,6 +57,7 @@ def fetch_team_defense_stats() -> dict:
             "def_rank":  int(row["def_rank"]),
         }
         for _, row in df.iterrows()
+        if pd.notna(row["TEAM_ABBREVIATION"])
     }
 
 
