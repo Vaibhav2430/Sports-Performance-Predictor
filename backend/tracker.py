@@ -20,7 +20,7 @@ def _save(log: list):
         json.dump(log, f, indent=2)
 
 
-def log_prediction(player: str, player_id, league: str, lines: dict, predictions: dict):
+def log_prediction(player: str, player_id, league: str, lines: dict, predictions: dict, injury_status: str = None):
     if not lines:
         return
     today_str = str(date.today())
@@ -29,15 +29,16 @@ def log_prediction(player: str, player_id, league: str, lines: dict, predictions
     if any(e["player"] == player and e["date"] == today_str and not e["resolved"] for e in log):
         return
     entry = {
-        "player":    player,
-        "player_id": str(player_id),
-        "league":    league,
-        "date":      today_str,
-        "lines":     {k: float(v) for k, v in lines.items()},
-        "predicted": {k: round(float(predictions[k]["prediction"]), 1)
-                      for k in predictions if k in lines},
-        "actual":    {},
-        "resolved":  False,
+        "player":         player,
+        "player_id":      str(player_id),
+        "league":         league,
+        "date":           today_str,
+        "lines":          {k: float(v) for k, v in lines.items()},
+        "predicted":      {k: round(float(predictions[k]["prediction"]), 1)
+                           for k in predictions if k in lines},
+        "actual":         {},
+        "resolved":       False,
+        "injury_status":  injury_status,
     }
     log.append(entry)
     _save(log)
@@ -52,12 +53,21 @@ def save_log(log: list):
 
 
 def mark_resolved(entry: dict, actual: dict):
-    entry["actual"]  = actual
+    entry["actual"]   = actual
     entry["resolved"] = True
 
 
+def mark_excluded(entry: dict):
+    entry["excluded"] = True
+    entry["resolved"] = True  # won't retry
+
+
 def compute_stats(log: list, league: str = None) -> dict:
-    resolved = [e for e in log if e.get("resolved") and (league is None or e.get("league") == league)]
+    resolved = [
+        e for e in log
+        if e.get("resolved") and not e.get("excluded")
+        and (league is None or e.get("league") == league)
+    ]
     total, correct = 0, 0
     by_stat = {
         "PTS": {"correct": 0, "total": 0},

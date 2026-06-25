@@ -9,6 +9,7 @@ from model import predict, find_player as nba_find_player, fetch_game_log as nba
 import wnba_model
 import odds
 import tracker
+import injuries
 
 @asynccontextmanager
 async def lifespan(_app):
@@ -34,9 +35,13 @@ def predict_endpoint(player: str = Query(..., description="Player full name")):
         result = predict(player)
         lines = odds.get_player_lines(player, "NBA")
         result["lines"] = lines
+        injury = injuries.get_player_injury(player, "NBA")
+        result["injury"] = injury
         p = nba_find_player(player)
-        if p:
-            tracker.log_prediction(player, p["id"], "NBA", lines, result["predictions"])
+        inj_status = injury["status"] if injury else None
+        is_out = inj_status and inj_status.lower() == "out"
+        if p and not is_out:
+            tracker.log_prediction(player, p["id"], "NBA", lines, result["predictions"], injury_status=inj_status)
         return result
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
@@ -65,9 +70,13 @@ def wnba_predict(player: str = Query(...)):
         result = wnba_model.predict(player)
         lines = odds.get_player_lines(player, "WNBA")
         result["lines"] = lines
+        injury = injuries.get_player_injury(player, "WNBA")
+        result["injury"] = injury
         p = wnba_model.find_player(player)
-        if p:
-            tracker.log_prediction(player, p["id"], "WNBA", lines, result["predictions"])
+        inj_status = injury["status"] if injury else None
+        is_out = inj_status and inj_status.lower() == "out"
+        if p and not is_out:
+            tracker.log_prediction(player, p["id"], "WNBA", lines, result["predictions"], injury_status=inj_status)
         return result
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
@@ -114,6 +123,27 @@ def _resolve_all():
                 continue
 
             game = future.iloc[0]
+
+            # If player was on the injury report and the first game after the
+            # predicted date is on a DIFFERENT date, they DNP'd — exclude.
+            inj_status = entry.get("injury_status")
+            if inj_status:
+                game_date = game["GAME_DATE"]
+                if hasattr(game_date, "date") and game_date.date() > pred_date.date():
+                    tracker.mark_excluded(entry)
+                    changed = True
+                    continue
+                # Also exclude if they barely played (left early due to injury)
+                try:
+                    raw_min = game["MIN"]
+                    min_played = float(str(raw_min).split(":")[0]) if ":" in str(raw_min) else float(raw_min)
+                    if min_played < 5:
+                        tracker.mark_excluded(entry)
+                        changed = True
+                        continue
+                except Exception:
+                    pass
+
             actual = {
                 stat: float(game[stat])
                 for stat in entry.get("lines", {})

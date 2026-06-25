@@ -135,6 +135,21 @@ export default function App() {
                 </div>
               </div>
 
+              {data.injury && (() => {
+                const inj = data.injury
+                const isOut = inj.status.toLowerCase() === 'out'
+                return (
+                  <div className={`injury-banner ${isOut ? 'out' : 'limited'}`}>
+                    <span className="injury-icon">{isOut ? '🚫' : '⚠️'}</span>
+                    <div>
+                      <span className="injury-status">{inj.status}</span>
+                      {inj.injury_type && <span className="injury-type">· {inj.injury_type}</span>}
+                      {inj.comment && <div style={{ marginTop: 4, opacity: 0.85 }}>{inj.comment}</div>}
+                    </div>
+                  </div>
+                )
+              })()}
+
               <div className="section-label">Next Game Projections</div>
               <PropCards predictions={data.predictions} gameLog={data.game_log} league={league} lines={data.lines ?? {}} />
 
