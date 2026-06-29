@@ -7,7 +7,22 @@ STAT_MAP   = {"Points": "PTS", "Assists": "AST", "Rebounds": "REB"}
 
 _cache:      dict = {}
 _cache_time: dict = {}
-CACHE_TTL = 300  # seconds
+CACHE_TTL = 1800  # 30 minutes
+
+# Persistent session so DataDome cookies are reused across requests
+_session = requests.Session()
+_session.headers.update({
+    "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Accept": "application/json, text/plain, */*",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Origin": "https://app.prizepicks.com",
+    "Referer": "https://app.prizepicks.com/",
+    "sec-ch-ua": '"Chromium";v="124", "Google Chrome";v="124"',
+    "sec-ch-ua-platform": '"macOS"',
+    "sec-fetch-dest": "empty",
+    "sec-fetch-mode": "cors",
+    "sec-fetch-site": "same-site",
+})
 
 
 def _normalize(name: str) -> str:
@@ -26,20 +41,19 @@ def fetch_lines(league: str) -> dict:
 
     league_id = LEAGUE_IDS.get(key, 7)
     try:
-        r = requests.get(
+        r = _session.get(
             "https://api.prizepicks.com/projections",
             params={
                 "league_id":   league_id,
                 "per_page":    500,
                 "single_stat": "true",
             },
-            headers={"User-Agent": "Mozilla/5.0", "Accept": "application/json"},
             timeout=10,
         )
         r.raise_for_status()
         data = r.json()
     except Exception:
-        return {}
+        return _cache.get(key, {})
 
     projections = data.get("data", [])
     included    = data.get("included", [])

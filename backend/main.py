@@ -1,3 +1,4 @@
+import time
 import threading
 import pandas as pd
 from contextlib import asynccontextmanager
@@ -10,11 +11,76 @@ import wnba_model
 import odds
 import tracker
 import injuries
+import team_context
+
+def _seed_if_needed():
+    """Seed both leagues on startup, but only if we haven't seeded today.
+    Stagger requests so we don't hit PrizePicks simultaneously."""
+    from datetime import date
+    today = str(date.today())
+    log = tracker.load_log()
+    already_today = any(e["date"] == today for e in log)
+    if already_today:
+        return
+    _seed_all("WNBA")
+    time.sleep(5)  # stagger to avoid simultaneous requests
+    _seed_all("NBA")
+
+def _apply_teammate_boosts(result: dict, league: str) -> None:
+    """Mutate result['predictions'] in-place to account for Out teammates.
+
+    Formula: each Out teammate's scoring gets 50% redistributed to remaining
+    players. Boost pct = out_ppg * 0.5 / (team_ppg - out_ppg). Capped at 25%.
+    AST gets 60% of the PTS boost; REB gets 20%.
+    """
+    team_abbr = result.get("team") or result.get("team_abbr")
+    if not team_abbr:
+        return
+
+    out_players = injuries.get_out_players_for_team(team_abbr, league)
+    if not out_players:
+        return
+
+    team_ppg = team_context.get_team_ppg(team_abbr, league)
+    boosts_applied = []
+
+    total_pts_boost = 0.0
+    for op in out_players:
+        ppg = team_context.get_player_ppg(op["name"], league)
+        if ppg is None or ppg < 8:  # skip low-impact players
+            continue
+        denominator = max(team_ppg - ppg, 40)  # avoid division edge cases
+        boost = (ppg * 0.5) / denominator
+        total_pts_boost += boost
+        boosts_applied.append({"player": op["name"], "ppg": round(ppg, 1), "boost_pct": round(boost * 100, 1)})
+
+    if not boosts_applied:
+        return
+
+    total_pts_boost = min(total_pts_boost, 0.25)  # hard cap at 25%
+    total_ast_boost = total_pts_boost * 0.6
+    total_reb_boost = total_pts_boost * 0.2
+
+    preds = result.get("predictions", {})
+    for stat, multiplier in [("PTS", total_pts_boost), ("AST", total_ast_boost), ("REB", total_reb_boost)]:
+        if stat not in preds or multiplier == 0:
+            continue
+        p = preds[stat]
+        orig = float(p["prediction"])
+        boosted = round(orig * (1 + multiplier), 1)
+        p["prediction"]     = boosted
+        p["season_avg"]     = p.get("season_avg", orig)   # keep original for display
+        p["last5_avg"]      = p.get("last5_avg", orig)
+        p["floor"]          = round(float(p.get("floor", orig * 0.7)) * (1 + multiplier * 0.5), 1)
+        p["ceiling"]        = round(float(p.get("ceiling", orig * 1.3)) * (1 + multiplier), 1)
+        p["teammate_boost"] = round(multiplier * 100, 1)
+
+    result["teammate_boosts"] = boosts_applied
+
 
 @asynccontextmanager
 async def lifespan(_app):
-    threading.Thread(target=_seed_all, args=("WNBA",), daemon=True).start()
-    threading.Thread(target=_seed_all, args=("NBA",),  daemon=True).start()
+    threading.Thread(target=_seed_if_needed, daemon=True).start()
     yield
 
 
@@ -37,6 +103,7 @@ def predict_endpoint(player: str = Query(..., description="Player full name")):
         result["lines"] = lines
         injury = injuries.get_player_injury(player, "NBA")
         result["injury"] = injury
+        _apply_teammate_boosts(result, "NBA")
         p = nba_find_player(player)
         inj_status = injury["status"] if injury else None
         is_out = inj_status and inj_status.lower() == "out"
@@ -72,6 +139,7 @@ def wnba_predict(player: str = Query(...)):
         result["lines"] = lines
         injury = injuries.get_player_injury(player, "WNBA")
         result["injury"] = injury
+        _apply_teammate_boosts(result, "WNBA")
         p = wnba_model.find_player(player)
         inj_status = injury["status"] if injury else None
         is_out = inj_status and inj_status.lower() == "out"
