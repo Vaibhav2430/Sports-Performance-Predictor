@@ -148,12 +148,11 @@ def fetch_game_log(player_id: str, season: str = None) -> pd.DataFrame:
                 home_away = meta.get("homeAway", "")
                 home      = 1 if home_away == "home" else 0
 
-                # Opponent
-                opp = ""
-                for comp in meta.get("competitors", []):
-                    if comp.get("homeAway") != home_away:
-                        opp = comp.get("abbreviation", "")
-                        break
+                # Opponent — lives at meta["opponent"], not in competitors
+                opp_obj  = meta.get("opponent", {})
+                opp      = opp_obj.get("abbreviation", "")
+                opp_name = opp_obj.get("displayName", opp)
+                opp_logo = opp_obj.get("logo", "")
 
                 def _num(v):
                     try:
@@ -164,6 +163,8 @@ def fetch_game_log(player_id: str, season: str = None) -> pd.DataFrame:
                 rows.append({
                     "GAME_DATE": game_date,
                     "MATCHUP":   opp,
+                    "OPP_NAME":  opp_name,
+                    "OPP_LOGO":  opp_logo,
                     "HOME":      home,
                     "MIN":  _num(stats[min_idx] if min_idx < len(stats) else 0),
                     "PTS":  _num(stats[pts_idx] if pts_idx < len(stats) else 0),
@@ -263,6 +264,7 @@ def predict(player_name: str) -> dict:
     df["OPP_OFF_PTS"]  = df["MATCHUP"].apply(lambda x: team_stats.get(x, {}).get("off_pts",  avg_off_pts))
     df["OPP_OFF_RANK"] = df["MATCHUP"].apply(lambda x: team_stats.get(x, {}).get("off_rank"))
     df["OPP_DEF_RANK"] = df["MATCHUP"].apply(lambda x: team_stats.get(x, {}).get("def_rank"))
+    # OPP_NAME and OPP_LOGO already populated per-row from ESPN opponent object
 
     feature_df = _build_features(df)
     X          = feature_df[FEATURE_COLS].values
@@ -304,7 +306,7 @@ def predict(player_name: str) -> dict:
         }
 
     game_log = (
-        df.tail(20)[["GAME_DATE", "MATCHUP", "HOME", "MIN", "PTS", "AST", "REB", "OPP_OFF_RANK", "OPP_DEF_RANK"]]
+        df.tail(20)[["GAME_DATE", "MATCHUP", "OPP_NAME", "OPP_LOGO", "HOME", "MIN", "PTS", "AST", "REB", "OPP_OFF_RANK", "OPP_DEF_RANK"]]
         .copy().iloc[::-1].reset_index(drop=True)
     )
     game_log["GAME_DATE"] = game_log["GAME_DATE"].dt.strftime("%Y-%m-%d")
@@ -323,7 +325,7 @@ def predict(player_name: str) -> dict:
         "season":        _current_wnba_season(),
         "games_used":    len(df),
         "predictions":   predictions,
-        "game_log":      game_log[["GAME_DATE", "OPP_ABBR", "WL", "MIN", "PTS", "AST", "REB", "OPP_OFF_RANK", "OPP_DEF_RANK"]].to_dict(orient="records"),
+        "game_log":      game_log[["GAME_DATE", "OPP_ABBR", "OPP_NAME", "OPP_LOGO", "WL", "MIN", "PTS", "AST", "REB", "OPP_OFF_RANK", "OPP_DEF_RANK"]].to_dict(orient="records"),
     }
 
 

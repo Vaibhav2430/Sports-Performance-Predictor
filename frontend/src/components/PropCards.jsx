@@ -38,6 +38,7 @@ function PropCard({ stat, p, gameLog, line }) {
   const ceilPct  = Math.min(98, (p.ceiling    / max) * 100)
 
   const hasLine  = line != null
+  const isPush   = hasLine && p.prediction === line
   const isOver   = hasLine && p.prediction > line
   const edge     = hasLine ? (p.prediction - line).toFixed(1) : null
 
@@ -66,13 +67,17 @@ function PropCard({ stat, p, gameLog, line }) {
       {hasLine && (
         <div className="pp-line">
           <span className="pp-label">PrizePicks</span>
-          <span className={`pp-badge ${isOver ? 'over' : 'under'}`}>
-            {isOver ? '▲ OVER' : '▼ UNDER'}
-          </span>
+          {!isPush && (
+            <span className={`pp-badge ${isOver ? 'over' : 'under'}`}>
+              {isOver ? '▲ OVER' : '▼ UNDER'}
+            </span>
+          )}
           <span className="pp-score">{line}</span>
-          <span className={`pp-edge ${isOver ? 'pos' : 'neg'}`}>
-            ({isOver ? '+' : ''}{edge})
-          </span>
+          {!isPush && (
+            <span className={`pp-edge ${isOver ? 'pos' : 'neg'}`}>
+              ({isOver ? '+' : ''}{edge})
+            </span>
+          )}
         </div>
       )}
 

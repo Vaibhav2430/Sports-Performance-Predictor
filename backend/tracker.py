@@ -84,6 +84,8 @@ def compute_stats(log: list, league: str = None) -> dict:
                 continue
             if stat not in by_stat:
                 continue
+            if pred == line:  # push — skip; prediction offers no directional signal
+                continue
             is_correct = (pred > line) == (float(act) > line)
             total += 1
             by_stat[stat]["total"] += 1

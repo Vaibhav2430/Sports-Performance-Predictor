@@ -40,9 +40,9 @@ export default function GameLogTable({ gameLog, predictions, league }) {
         </thead>
         <tbody>
           {gameLog.map((row, i) => {
-            const abbr   = row.OPP_ABBR ?? row.MATCHUP ?? ''
-            const logo   = oppLogoUrl(abbr, isWNBA)
-            const matchupLabel = row.MATCHUP ?? abbr
+            const abbr     = row.OPP_ABBR ?? row.MATCHUP ?? ''
+            const logo     = row.OPP_LOGO || oppLogoUrl(abbr, isWNBA)
+            const teamName = row.OPP_NAME ?? abbr
 
             return (
               <tr key={i}>
@@ -55,7 +55,7 @@ export default function GameLogTable({ gameLog, predictions, league }) {
                         : <div className="matchup-logo-placeholder" />}
                     </div>
                     <div className="matchup-info">
-                      <span className="matchup-name">{abbr || matchupLabel}</span>
+                      <span className="matchup-name">{teamName}</span>
                       <div className="matchup-ranks">
                         <RankPill label="OFF" rank={row.OPP_OFF_RANK} total={totalTeams} />
                         <RankPill label="DEF" rank={row.OPP_DEF_RANK} total={totalTeams} />

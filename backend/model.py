@@ -182,6 +182,7 @@ def predict(player_name: str) -> dict:
     df["OPP_PACE"]     = df["OPP"].apply(lambda x: team_stats.get(x, {}).get("pace",     avg_pace))
     df["OPP_OFF_RANK"] = df["OPP"].apply(lambda x: team_stats.get(x, {}).get("off_rank"))
     df["OPP_DEF_RANK"] = df["OPP"].apply(lambda x: team_stats.get(x, {}).get("def_rank"))
+    df["OPP_NAME"]     = df["OPP"].apply(lambda x: team_stats.get(x, {}).get("team_name", x))
 
     feature_df = _build_features(df)
     X = feature_df[FEATURE_COLS].values
@@ -224,7 +225,7 @@ def predict(player_name: str) -> dict:
         }
 
     game_log = (
-        df.tail(20)[["GAME_DATE", "MATCHUP", "WL", "MIN", "PTS", "AST", "REB", "OPP", "OPP_OFF_RANK", "OPP_DEF_RANK"]]
+        df.tail(20)[["GAME_DATE", "MATCHUP", "WL", "MIN", "PTS", "AST", "REB", "OPP", "OPP_NAME", "OPP_OFF_RANK", "OPP_DEF_RANK"]]
         .copy()
         .iloc[::-1]
         .reset_index(drop=True)
