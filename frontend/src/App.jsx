@@ -178,7 +178,7 @@ export default function App() {
         </main>
       </div>
 
-      <Chatbot league={league} currentData={data} />
+      <Chatbot key={league} league={league} currentData={data} />
     </>
   )
 }

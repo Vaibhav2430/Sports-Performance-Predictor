@@ -8,6 +8,19 @@ const PROMPTS = [
   { id: 'worst',     label: 'Worst hit rates' },
 ]
 
+// Keep WNBA explanations correct even when an older API still returns
+// the original masculine templates.
+function reasoningText(text, league) {
+  if (league !== 'WNBA') return text
+  const pronouns = { he: 'she', his: 'her', him: 'her' }
+  return text.replace(/\b(he|his|him)\b/gi, word => {
+    const replacement = pronouns[word.toLowerCase()]
+    return word[0] === word[0].toUpperCase()
+      ? replacement[0].toUpperCase() + replacement.slice(1)
+      : replacement
+  })
+}
+
 function Leaderboard({ rows, kind }) {
   return (
     <div className="cb-board">
@@ -101,7 +114,7 @@ export default function Chatbot({ league, currentData }) {
                 {m.text && <div className="cb-bubble">{m.text}</div>}
                 {m.blocks && (
                   <div className="cb-bubble">
-                    {m.blocks.map((b, j) => <p key={j} className="cb-block">{b}</p>)}
+                    {m.blocks.map((b, j) => <p key={j} className="cb-block">{reasoningText(b, league)}</p>)}
                   </div>
                 )}
                 {m.board && (

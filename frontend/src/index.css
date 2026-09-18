@@ -370,6 +370,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  padding-top: 20px;
   margin-bottom: 16px;
 }
 .tp-title {
@@ -378,17 +379,23 @@ body {
   letter-spacing: -0.3px;
 }
 .tp-close {
-  width: 28px; height: 28px;
+  margin-top: 54px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 44px; height: 44px;
   border-radius: 50%;
   border: 1px solid var(--border2);
   background: var(--surface2);
-  color: var(--text);
+  color: #fff;
   font-size: 1.1rem;
   line-height: 1;
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s;
 }
 .tp-close:hover { background: var(--border); border-color: var(--orange); }
+.tp-close:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
 
 .tp-columns {
   display: grid;

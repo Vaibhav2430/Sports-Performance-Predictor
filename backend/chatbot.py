@@ -91,13 +91,13 @@ def leaderboard(log: list, league: str | None = None, limit: int = 10, min_picks
 
 
 # ── Q1: reasoning behind a player's projections ───────────────────────────
-def _vs_avg(pred: float, avg: float | None, label: str) -> str | None:
+def _vs_avg(pred: float, avg: float | None, label: str, possessive: str) -> str | None:
     if avg is None:
         return None
     d = round(pred - avg, 1)
     if abs(d) < 0.6:
-        return f"right around his {label} ({avg})"
-    return f"{abs(d)} {'above' if d > 0 else 'below'} his {label} ({avg})"
+        return f"right around {possessive} {label} ({avg})"
+    return f"{abs(d)} {'above' if d > 0 else 'below'} {possessive} {label} ({avg})"
 
 
 def _minutes_trend(game_log: list) -> str | None:
@@ -126,6 +126,7 @@ def build_reasoning(result: dict, league: str = "NBA") -> dict:
     injury      = result.get("injury")
     boosts      = result.get("teammate_boosts") or []
     dampening   = result.get("return_dampening") or []
+    subject, possessive = ("she", "her") if league.upper() == "WNBA" else ("he", "his")
 
     blocks: list[str] = [f"Here's what's driving the {player} projections for the next game:"]
 
@@ -137,8 +138,8 @@ def build_reasoning(result: dict, league: str = "NBA") -> dict:
         pred = float(p["prediction"])
         parts = [f"{stat}: model projects {pred}"]
         rel = [
-            _vs_avg(pred, p.get("season_avg"), "season average"),
-            _vs_avg(pred, p.get("last5_avg"),  "last-5 average"),
+            _vs_avg(pred, p.get("season_avg"), "season average", possessive),
+            _vs_avg(pred, p.get("last5_avg"),  "last-5 average", possessive),
         ]
         rel = [r for r in rel if r]
         if rel:
@@ -185,7 +186,7 @@ def build_reasoning(result: dict, league: str = "NBA") -> dict:
         context.append(f"Projected ~{result['proj_min']} minutes, which caps the ceiling on each stat.")
     if result.get("questionable_gate"):
         g = result["questionable_gate"]
-        context.append(f"Scaled down {abs(round((g['mult']-1)*100))}% because he's listed {g['status']}.")
+        context.append(f"Scaled down {abs(round((g['mult']-1)*100))}% because {subject}'s listed {g['status']}.")
     if boosts:
         names = ", ".join(b["player"] for b in boosts)
         context.append(f"Usage boost applied with {names} out — their touches redistribute toward {player}.")

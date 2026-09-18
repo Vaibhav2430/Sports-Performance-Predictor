@@ -95,7 +95,11 @@ export default function TeamPreview({ game, league, onClose }) {
     <div className="team-preview fade-in">
       <div className="tp-header">
         <div className="tp-title">{game.away.tricode} @ {game.home.tricode}</div>
-        <button className="tp-close" onClick={onClose} aria-label="Close">×</button>
+        <button type="button" className="tp-close" onClick={onClose} aria-label="Close game preview and return to player search" title="Back to player search">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
+            <path d="M6 6l12 12M18 6L6 18" />
+          </svg>
+        </button>
       </div>
 
       {loading && (
