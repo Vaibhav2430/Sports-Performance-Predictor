@@ -44,6 +44,7 @@ export default function GamesSidebar({ league, selectedGameId, onSelectGame }) {
         </div>
       )}
 
+      <div className="games-list">
       {games.map(g => {
         const isLive    = g.statusCode === 2
         const isFinal   = g.statusCode === 3
@@ -56,6 +57,7 @@ export default function GamesSidebar({ league, selectedGameId, onSelectGame }) {
             key={g.gameId}
             className={`game-card ${statusCls} ${isSelected ? 'selected' : ''}`}
             onClick={() => onSelectGame?.(g)}
+            onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onSelectGame?.(g) } }}
             role="button"
             tabIndex={0}
           >
@@ -104,6 +106,7 @@ export default function GamesSidebar({ league, selectedGameId, onSelectGame }) {
           </div>
         )
       })}
+      </div>
     </aside>
   )
 }

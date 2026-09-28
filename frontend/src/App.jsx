@@ -8,6 +8,7 @@ import StatChart from './components/StatChart'
 import GameLogTable from './components/GameLogTable'
 import TeamPreview from './components/TeamPreview'
 import Chatbot from './components/Chatbot'
+import HomeExplore from './components/HomeExplore'
 import { teamLogoUrl as teamLogoUrlFor } from './teamLogo'
 
 export default function App() {
@@ -69,6 +70,7 @@ export default function App() {
     <>
       <header className="header">
         <div className="logo">
+          <span className="brand-mark" aria-hidden="true"><span>C</span><span>C</span></span>
           CourtCast
         </div>
 
@@ -94,26 +96,30 @@ export default function App() {
       <div className="shell">
         <GamesSidebar league={league} selectedGameId={selectedGame?.gameId} onSelectGame={handleSelectGame} />
 
-        <main className={`main ${hasResults ? '' : 'empty'}`}>
+        <main className={`main ${!hasResults && !selectedGame ? 'home-main' : ''}`}>
           <div className={`search-section ${selectedGame ? 'wide' : ''}`}>
             {selectedGame ? (
               <TeamPreview
                 game={selectedGame}
                 league={league}
+                onSelectPlayer={handleSearch}
                 onClose={() => setSelectedGame(null)}
               />
             ) : (
               <>
                 {!hasResults && (
                   <div className="search-hero">
-                    <h1>CourtCast</h1>
+                    <h1>Every player. Every angle.<br /><span>Your next insight.</span></h1>
+                    <p>Explore next-game projections, recent form, and the numbers behind the matchup.</p>
                   </div>
                 )}
-                <PlayerSearch onSearch={handleSearch} loading={loading} league={league} />
+                <PlayerSearch key={league} onSearch={handleSearch} loading={loading} league={league} />
                 {error && <div className="error">⚠ {error}</div>}
               </>
             )}
           </div>
+
+          {!hasResults && !selectedGame && !loading && <HomeExplore league={league} onSelectPlayer={handleSearch} />}
 
           {loading && (
             <div className="loading">

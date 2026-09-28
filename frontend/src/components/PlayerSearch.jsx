@@ -57,6 +57,7 @@ export default function PlayerSearch({ onSearch, loading, league }) {
         </svg>
         <input
           className="search-input"
+          aria-label={`Search ${league} player`}
           value={query}
           onChange={e => { submitted.current = false; setQuery(e.target.value) }}
           onKeyDown={e => e.key === 'Enter' && submit()}

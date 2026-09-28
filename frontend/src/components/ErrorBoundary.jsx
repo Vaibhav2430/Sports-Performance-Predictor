@@ -17,7 +17,7 @@ export default class ErrorBoundary extends Component {
         }}>
           <h2 style={{ color: '#ff7a1a', marginBottom: 12 }}>React Error</h2>
           <pre style={{ whiteSpace: 'pre-wrap' }}>{this.state.error.message}</pre>
-          <pre style={{ whiteSpace: 'pre-wrap', color: '#8f8f99', marginTop: 12 }}>
+          <pre style={{ whiteSpace: 'pre-wrap', color: '#ffffff', marginTop: 12 }}>
             {this.state.error.stack}
           </pre>
         </div>

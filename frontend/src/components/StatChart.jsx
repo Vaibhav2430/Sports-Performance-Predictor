@@ -18,7 +18,7 @@ const Tip = ({ active, payload, label, color }) => {
       borderRadius: 8, padding: '9px 13px', fontSize: '0.8rem',
       boxShadow: '0 8px 24px rgba(0,0,0,0.8)',
     }}>
-      <div style={{ color: '#8f8f99', marginBottom: 6 }}>{label}</div>
+      <div style={{ color: '#ffffff', marginBottom: 6 }}>{label}</div>
       <div style={{ color, fontWeight: 700, fontSize: '1rem' }}>{payload[0].value}</div>
     </div>
   )
@@ -66,12 +66,12 @@ export default function StatChart({ gameLog, predictions }) {
             <CartesianGrid strokeDasharray="3 3" stroke="#1a1a1e" vertical={false} />
             <XAxis
               dataKey="date"
-              tick={{ fill: '#8f8f99', fontSize: 11 }}
+              tick={{ fill: '#ffffff', fontSize: 11 }}
               axisLine={false} tickLine={false}
               interval="preserveStartEnd"
             />
             <YAxis
-              tick={{ fill: '#8f8f99', fontSize: 11 }}
+              tick={{ fill: '#ffffff', fontSize: 11 }}
               axisLine={false} tickLine={false}
               domain={[0, 'auto']}
             />

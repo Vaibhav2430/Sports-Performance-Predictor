@@ -11,7 +11,7 @@ function rankClass(rank, isWNBA) {
   return 'rank-mid'
 }
 
-function TeamColumn({ team, isWNBA }) {
+function TeamColumn({ team, isWNBA, onSelectPlayer }) {
   if (!team) return null
   const logo = teamLogoUrl(team.tricode, isWNBA)
 
@@ -45,22 +45,29 @@ function TeamColumn({ team, isWNBA }) {
           team.players.map(p => {
             const headshot = playerHeadshotUrl(p.id, isWNBA)
             return (
-              <div className="tp-player" key={p.id ?? p.name}>
-                <div className="tp-player-headshot">
+              <button
+                type="button"
+                className="tp-player"
+                key={p.id ?? p.name}
+                onClick={() => onSelectPlayer(p.name)}
+                aria-label={`View predictions for ${p.name}`}
+                title={`View predictions for ${p.name}`}
+              >
+                <span className="tp-player-headshot">
                   {headshot
                     ? <img src={headshot} alt="" onError={e => { e.target.style.visibility = 'hidden' }} />
                     : <span>🏀</span>}
-                </div>
-                <div className="tp-player-info">
-                  <div className="tp-player-name">{p.name}</div>
-                  <div className="tp-player-min">{p.min} MIN</div>
-                </div>
-                <div className="tp-player-stats">
-                  <div className="tp-stat"><span className="tp-stat-val td-pts">{p.pts}</span><span className="tp-stat-lbl">PTS</span></div>
-                  <div className="tp-stat"><span className="tp-stat-val td-ast">{p.ast}</span><span className="tp-stat-lbl">AST</span></div>
-                  <div className="tp-stat"><span className="tp-stat-val td-reb">{p.reb}</span><span className="tp-stat-lbl">REB</span></div>
-                </div>
-              </div>
+                </span>
+                <span className="tp-player-info">
+                  <span className="tp-player-name">{p.name}</span>
+                  <span className="tp-player-min">{p.min} MIN</span>
+                </span>
+                <span className="tp-player-stats">
+                  <span className="tp-stat"><span className="tp-stat-val td-pts">{p.pts}</span><span className="tp-stat-lbl">PTS</span></span>
+                  <span className="tp-stat"><span className="tp-stat-val td-ast">{p.ast}</span><span className="tp-stat-lbl">AST</span></span>
+                  <span className="tp-stat"><span className="tp-stat-val td-reb">{p.reb}</span><span className="tp-stat-lbl">REB</span></span>
+                </span>
+              </button>
             )
           })
         ) : (
@@ -71,7 +78,7 @@ function TeamColumn({ team, isWNBA }) {
   )
 }
 
-export default function TeamPreview({ game, league, onClose }) {
+export default function TeamPreview({ game, league, onClose, onSelectPlayer }) {
   const [preview, setPreview] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError]     = useState(null)
@@ -113,9 +120,9 @@ export default function TeamPreview({ game, league, onClose }) {
 
       {preview && !loading && (
         <div className="tp-columns">
-          <TeamColumn team={preview.away} isWNBA={isWNBA} />
+          <TeamColumn team={preview.away} isWNBA={isWNBA} onSelectPlayer={onSelectPlayer} />
           <div className="tp-divider" />
-          <TeamColumn team={preview.home} isWNBA={isWNBA} />
+          <TeamColumn team={preview.home} isWNBA={isWNBA} onSelectPlayer={onSelectPlayer} />
         </div>
       )}
     </div>
