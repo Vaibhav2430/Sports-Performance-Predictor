@@ -279,6 +279,23 @@ def _normal_cdf(z: float) -> float:
     return 0.5 * (1.0 + math.erf(z / math.sqrt(2.0)))
 
 
+def _adjust_and_record(result: dict, league: str, injury: dict | None, target_id=None) -> None:
+    """Preserve each forecast stage so adjustment effects can be paired later."""
+    def snapshot():
+        return {stat: float(p["prediction"]) for stat, p in result["predictions"].items()}
+
+    stages = {"raw": snapshot()}
+    if result.get("apply_adjustments", True):
+        _apply_teammate_boosts(result, league, target_id=target_id)
+        stages["teammate"] = snapshot()
+        _apply_return_dampening(result, league)
+        stages["return"] = snapshot()
+        _apply_questionable_gate(result, injury)
+        stages["questionable"] = snapshot()
+    stages["final"] = snapshot()
+    result["prediction_stages"] = stages
+
+
 def _attach_p_over(result: dict) -> None:
     """For every stat with a posted line, add the model's probability the
     result lands OVER the line: P(X > line) for X ~ Normal(prediction, sigma).
@@ -289,10 +306,16 @@ def _attach_p_over(result: dict) -> None:
         sigma = p.get("sigma")
         if line is None or not sigma:
             continue
-        z = (float(line) - float(p["prediction"])) / max(float(sigma), 1e-6)
+        threshold = math.floor(float(line)) + 0.5 if result.get("model_version", "").startswith("history-v1-") else float(line)
+        z = (threshold - float(p["prediction"])) / max(float(sigma), 1e-6)
         p_over = round(1.0 - _normal_cdf(z), 3)
         p["p_over"]  = p_over
-        p["p_under"] = round(1.0 - p_over, 3)
+        if result.get("model_version", "").startswith("history-v1-"):
+            # Integer lines have a nonzero push probability.
+            under_z = (math.ceil(float(line)) - 0.5 - float(p["prediction"])) / max(float(sigma), 1e-6)
+            p["p_under"] = round(_normal_cdf(under_z), 3)
+        else:
+            p["p_under"] = round(1.0 - p_over, 3)
 
 
 @asynccontextmanager
@@ -326,16 +349,15 @@ def predict_endpoint(request: Request, player: str = Query(..., description="Pla
         injury = injuries.get_player_injury(player, "NBA")
         result["injury"] = injury
         p = nba_find_player(player)
-        _apply_teammate_boosts(result, "NBA", target_id=p["id"] if p else None)
-        _apply_return_dampening(result, "NBA")
-        _apply_questionable_gate(result, injury)
+        _adjust_and_record(result, "NBA", injury, target_id=p["id"] if p else None)
         _attach_p_over(result)
         inj_status = injury["status"] if injury else None
         is_out = inj_status and inj_status.lower() == "out"
         if p and not is_out:
             game_date = odds.get_player_game_date(player, "NBA")
             tracker.log_prediction(player, p["id"], "NBA", lines, result["predictions"],
-                                    injury_status=inj_status, game_date=game_date)
+                                    injury_status=inj_status, game_date=game_date,
+                                    prediction_stages=result["prediction_stages"], model_version=result.get("model_version"))
         return result
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
@@ -371,16 +393,15 @@ def wnba_predict(request: Request, player: str = Query(...)):
         injury = injuries.get_player_injury(player, "WNBA")
         result["injury"] = injury
         p = wnba_model.find_player(player)
-        _apply_teammate_boosts(result, "WNBA", target_id=p["id"] if p else None)
-        _apply_return_dampening(result, "WNBA")
-        _apply_questionable_gate(result, injury)
+        _adjust_and_record(result, "WNBA", injury, target_id=p["id"] if p else None)
         _attach_p_over(result)
         inj_status = injury["status"] if injury else None
         is_out = inj_status and inj_status.lower() == "out"
         if p and not is_out:
             game_date = odds.get_player_game_date(player, "WNBA")
             tracker.log_prediction(player, p["id"], "WNBA", lines, result["predictions"],
-                                    injury_status=inj_status, game_date=game_date)
+                                    injury_status=inj_status, game_date=game_date,
+                                    prediction_stages=result["prediction_stages"], model_version=result.get("model_version"))
         return result
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))

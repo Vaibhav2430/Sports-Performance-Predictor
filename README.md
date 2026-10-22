@@ -36,6 +36,71 @@ Rank badges use dynamic thirds based on league size (30 NBA teams, 15 WNBA teams
 - **Orange** – middle third
 - **Red** – bottom third
 
+## Evaluate and tune
+
+From the project root, run the full WNBA comparison:
+
+```bash
+.venv/bin/python backend/evaluate.py --league WNBA
+```
+
+This downloads and caches current/prior historical seasons identified by the
+prediction log, then compares recent averages, six XGBoost configurations, and
+25%/50%/100% model blends. It selects a configuration separately for points,
+assists, and rebounds using average absolute error (MAE).
+
+The first 40% of distinct game dates supplies initial training history. Three
+subsequent 15% blocks select settings; the final 15% is reserved for testing.
+Models refit at each block boundary using only earlier targets. Rolling player
+features update after each observed game. Current defensive ratings and injury
+reports are excluded because historical snapshots are not available.
+`current_history_only` uses the old tree settings on these same safe features;
+it is not an exact replay of the production model. The saved-forecast audit
+provides a separate comparison against the actual logged final predictions.
+
+Outputs are in `backend/evaluation_results/`:
+
+- `report.json`: validation rankings, test MAE/RMSE, interval coverage, matched
+  saved-forecast comparisons, missing histories, and conflicting recorded results.
+- `predictions.csv`: individual out-of-sample predictions and split assignments.
+- `candidate.json`: selected settings and uncertainty fitted on validation errors.
+- `input_log.json`: frozen input log for reproducibility. The live log is not edited.
+
+Repeat from cached data without network access:
+
+```bash
+.venv/bin/python backend/evaluate.py --league WNBA --offline
+```
+
+Use `--limit 10` for a quick sample, `--refresh` to fetch updated histories, and
+`--output PATH` to preserve separate runs. `--league NBA` uses NBA histories when
+the input log contains resolved NBA predictions. Keep candidate settings fixed
+after looking at the test results; tuning against that same test would invalidate
+the comparison. Future changes need a new untouched period.
+
+The workflow saves a candidate by default and does not replace the live model.
+`--activate` installs it only for a full run with no missing/error histories and
+no test MAE regression against the baseline in any stat. MAE is not over/under
+accuracy: review both before activation. Active settings live in
+`backend/model_configs/wnba.json` (or `nba.json`); move that file aside to restore
+the legacy model. The tuned path uses the same feature/blend implementation as
+evaluation and skips unevaluated injury multipliers. Live models refit per
+request, whereas evaluation models refit per block.
+
+New predictions record the model version, creation timestamp, and outputs before
+and after each injury adjustment. Existing records cannot retrospectively reveal
+these stages. The audit uses matching player/date/stat observations, checks the
+actual outcome, deduplicates them, excludes actual pushes from directional
+accuracy, and counts early-exit losses normally. It reports probability error on
+rows where both probabilities exist. Old logs without timestamps are not proof of
+pregame performance.
+
+Run the offline regression checks:
+
+```bash
+.venv/bin/python -m unittest discover -s backend -p 'test_*.py'
+```
+
 ## Run locally
 
 ```bash

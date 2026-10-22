@@ -1,8 +1,8 @@
-"""Offline sanity check: does the XGBoost model actually beat a dumb
-recent-form baseline on the predictions we've already resolved?
+"""Legacy saved-forecast comparison (requires network for historical logs).
+For chronological tuning and held-out evaluation, use evaluate.py instead.
 
 Baseline  = 0.6 * last-5 average + 0.4 * last-10 average (as of the game date)
-Blend     = 0.5 * XGB + 0.5 * baseline
+Blend     = 0.5 * saved final forecast + 0.5 * baseline
 
 For every resolved, non-excluded entry in predictions_log.json it re-derives
 the baseline from the player's game log (games strictly before the predicted
@@ -26,7 +26,7 @@ import wnba_model as wnba
 
 LOG_FILE = os.path.join(os.path.dirname(__file__), "predictions_log.json")
 STATS = ("PTS", "AST", "REB")
-METHODS = ("xgb", "baseline", "blend")
+METHODS = ("saved", "baseline", "blend")
 
 
 def _player_log(league: str, player_id: str) -> pd.DataFrame:
@@ -87,7 +87,6 @@ def main() -> None:
             hist = full[full["GAME_DATE"] < gd]
             if len(hist) < 5:
                 continue
-            early_exit = e.get("early_exit", False)
 
             for stat in e["lines"]:
                 if stat not in STATS:
@@ -103,12 +102,10 @@ def main() -> None:
                 base  = 0.6 * l5 + 0.4 * l10
                 blend = 0.5 * xgb + 0.5 * base
 
-                for method, pred in (("xgb", xgb), ("baseline", base), ("blend", blend)):
+                for method, pred in (("saved", xgb), ("baseline", base), ("blend", blend)):
                     abserr[method][0] += abs(float(act) - pred)
                     abserr[method][1] += 1
-                    if pred == line:                                   # push
-                        continue
-                    if early_exit and pred > line and act < line:      # voided over
+                    if pred == line or float(act) == line:  # no signal or actual push
                         continue
                     tally[method][stat][1] += 1
                     tally[method][stat][0] += int((pred > line) == (float(act) > line))
@@ -128,7 +125,7 @@ def main() -> None:
             cells.append(cell(c, t))
         mae = abserr[m][0] / abserr[m][1] if abserr[m][1] else float("nan")
         print(f"{m:9} {cells[0]:>16} {cells[1]:>16} {cells[2]:>16} {cell(oc, ot):>18} {mae:7.2f}")
-    print("\nIf 'xgb' isn't clearly ahead of 'baseline', the model isn't earning its complexity.")
+    print("\n'saved' includes all production adjustments, not just XGBoost. No early-exit losses are removed.")
 
 
 if __name__ == "__main__":

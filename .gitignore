@@ -207,3 +207,7 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Reproducible model evaluation downloads and detailed generated forecasts
+backend/evaluation_cache/
+backend/evaluation_results/

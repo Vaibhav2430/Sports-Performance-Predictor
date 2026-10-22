@@ -1,7 +1,7 @@
 import json
 import os
 import threading
-from datetime import date
+from datetime import date, datetime, timezone
 
 LOG_FILE = os.path.join(os.path.dirname(__file__), "predictions_log.json")
 
@@ -27,7 +27,8 @@ def _save(log: list):
 
 
 def log_prediction(player: str, player_id, league: str, lines: dict, predictions: dict,
-                    injury_status: str = None, game_date: str = None):
+                    injury_status: str = None, game_date: str = None,
+                    prediction_stages: dict = None, model_version: str = None):
     if not lines:
         return
     game_date = game_date or str(date.today())
@@ -50,6 +51,9 @@ def log_prediction(player: str, player_id, league: str, lines: dict, predictions
             "actual":         {},
             "resolved":       False,
             "injury_status":  injury_status,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+            "model_version": model_version or "legacy-unversioned",
+            "prediction_stages": prediction_stages or {},
         }
         log.append(entry)
         _save(log)

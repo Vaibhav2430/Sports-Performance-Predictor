@@ -9,6 +9,7 @@ from nba_api.stats.endpoints import (
 from nba_api.stats.static import players as nba_players, teams as nba_teams
 from xgboost import XGBRegressor
 import defense_by_position as dbp
+import tuning
 
 STATS = ["PTS", "AST", "REB"]
 
@@ -342,9 +343,10 @@ def predict(player_name: str) -> dict:
     if not player:
         raise ValueError(f"Player '{player_name}' not found.")
 
+    tuned = tuning.load_active("NBA")
     df = fetch_game_log(player["id"])
     current_season_n = len(df)
-    if current_season_n < 15:
+    if tuned or current_season_n < 15:
         df_prev = fetch_game_log(player["id"], season=_prev_nba_season())
         if not df_prev.empty:
             df = pd.concat([df_prev, df], ignore_index=True)
@@ -393,71 +395,70 @@ def predict(player_name: str) -> dict:
 
     next_game = _next_game(player_team_abbr, df["GAME_DATE"].iloc[-1])
 
-    feature_df = _build_features(df)
-    X = feature_df[FEATURE_COLS].values
-    X_next = _next_features(df, avg_def_rtg, avg_pace, avg_pos, team_pace,
-                            team_stats, player_pos, pos_def, next_game)
-
-    # Projected minutes for the next game: recent workload, tilted toward the
-    # most recent handful of games. Used below as a ceiling on each stat - a
-    # player can't run far past his per-minute rate x the minutes he'll play.
-    if len(df) >= 3:
-        proj_min = float(0.65 * df["MIN"].tail(3).mean() + 0.35 * df["MIN"].tail(10).mean())
+    proj_min = float(0.65 * df["MIN"].tail(3).mean() + 0.35 * df["MIN"].tail(10).mean())
+    if tuned:
+        predictions = tuning.predict_tuned(df, next_game, tuned)
+        current_games = df.tail(current_season_n) if current_season_n else df
+        for stat in STATS:
+            predictions[stat]["season_avg"] = round(float(current_games[stat].mean()), 1)
     else:
-        proj_min = float(df["MIN"].mean())
+        feature_df = _build_features(df)
+        X = feature_df[FEATURE_COLS].values
+        X_next = _next_features(df, avg_def_rtg, avg_pace, avg_pos, team_pace,
+                                team_stats, player_pos, pos_def, next_game)
 
-    n = len(X)
-    sample_weights = np.ones(n)
-    sample_weights[-10:] = 2.25
+        n = len(X)
+        sample_weights = np.ones(n)
+        sample_weights[-10:] = 2.25
 
-    # Fewer training rows → fewer trees and shallower depth to prevent overfitting
-    n_estimators = max(30, min(150, n * 8))
-    max_depth    = 2 if n < 15 else 3
+        # Fewer training rows → fewer trees and shallower depth to prevent overfitting
+        n_estimators = max(30, min(150, n * 8))
+        max_depth    = 2 if n < 15 else 3
 
-    predictions: dict = {}
-    for stat in STATS:
-        y = feature_df[stat].values
-        model = XGBRegressor(
-            n_estimators=n_estimators,
-            max_depth=max_depth,
-            learning_rate=0.08,
-            subsample=0.8,
-            colsample_bytree=0.8,
-            reg_lambda=5.0 if n < 15 else 1.0,
-            random_state=42,
-            verbosity=0,
-        )
-        model.fit(X, y, sample_weight=sample_weights)
-        pred = max(0.0, float(model.predict(X_next)[0]))
+        predictions: dict = {}
+        for stat in STATS:
+            y = feature_df[stat].values
+            model = XGBRegressor(
+                n_estimators=n_estimators,
+                max_depth=max_depth,
+                learning_rate=0.08,
+                subsample=0.8,
+                colsample_bytree=0.8,
+                reg_lambda=5.0 if n < 15 else 1.0,
+                random_state=42,
+                verbosity=0,
+            )
+            model.fit(X, y, sample_weight=sample_weights)
+            pred = max(0.0, float(model.predict(X_next)[0]))
 
-        curr_games   = df[stat].tail(current_season_n) if current_season_n > 0 else df[stat]
-        curr_min     = df["MIN"].tail(current_season_n) if current_season_n > 0 else df["MIN"]
-        season_avg   = float(curr_games.mean())
-        std          = float(curr_games.std())
-        curr_min_avg = float(curr_min.mean())
+            curr_games   = df[stat].tail(current_season_n) if current_season_n > 0 else df[stat]
+            curr_min     = df["MIN"].tail(current_season_n) if current_season_n > 0 else df["MIN"]
+            season_avg   = float(curr_games.mean())
+            std          = float(curr_games.std())
+            curr_min_avg = float(curr_min.mean())
 
-        # Symmetric sanity band around the season average, then a minutes-based
-        # ceiling on top (per-minute rate x projected minutes, +15% headroom).
-        lo = max(0.0, season_avg - 2 * std)
-        hi = season_avg + 2 * std
-        if curr_min_avg > 0:
-            hi = min(hi, season_avg / curr_min_avg * proj_min * 1.15)
-        hi   = max(hi, lo)
-        pred = float(np.clip(pred, lo, hi))
+            # Symmetric sanity band around the season average, then a minutes-based
+            # ceiling on top (per-minute rate x projected minutes, +15% headroom).
+            lo = max(0.0, season_avg - 2 * std)
+            hi = season_avg + 2 * std
+            if curr_min_avg > 0:
+                hi = min(hi, season_avg / curr_min_avg * proj_min * 1.15)
+            hi   = max(hi, lo)
+            pred = float(np.clip(pred, lo, hi))
 
-        # Spread of the outcome distribution: how far off the model has been on
-        # its own training rows, bumped 15% for in-sample optimism and floored
-        # by the player's raw game-to-game volatility so a streaky player never
-        # gets an artificially tight distribution. Consumed by _attach_p_over().
-        resid = y - model.predict(X)
-        sigma = max(float(np.std(resid)) * 1.15, 0.6 * std, 0.5)
+            # Spread of the outcome distribution: how far off the model has been on
+            # its own training rows, bumped 15% for in-sample optimism and floored
+            # by the player's raw game-to-game volatility so a streaky player never
+            # gets an artificially tight distribution. Consumed by _attach_p_over().
+            resid = y - model.predict(X)
+            sigma = max(float(np.std(resid)) * 1.15, 0.6 * std, 0.5)
 
-        predictions[stat] = {
-            "prediction": round(pred, 1),
-            "last5_avg":  round(float(df[stat].tail(5).mean()), 1),
-            "season_avg": round(season_avg, 1),
-            "sigma":      round(sigma, 2),
-        }
+            predictions[stat] = {
+                "prediction": round(pred, 1),
+                "last5_avg":  round(float(df[stat].tail(5).mean()), 1),
+                "season_avg": round(season_avg, 1),
+                "sigma":      round(sigma, 2),
+            }
 
     game_log = (
         df.tail(20)[["GAME_DATE", "MATCHUP", "WL", "MIN", "PTS", "AST", "REB", "OPP", "OPP_NAME", "OPP_OFF_RANK", "OPP_DEF_RANK"]]
@@ -486,6 +487,8 @@ def predict(player_name: str) -> dict:
                 "off_rank": team_stats.get(next_game["opp_abbr"], {}).get("off_rank"),
             } if next_game else None
         ),
+        "model_version": tuned["version"] if tuned else "legacy-unversioned",
+        "apply_adjustments": tuned.get("apply_adjustments", False) if tuned else True,
         "predictions":   predictions,
         "game_log":      game_log.to_dict(orient="records"),
     }

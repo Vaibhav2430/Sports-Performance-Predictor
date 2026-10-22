@@ -7,11 +7,12 @@ import pandas as pd
 from xgboost import XGBRegressor
 from nba_api.stats.endpoints import leaguedashteamstats, leaguedashplayerstats
 import defense_by_position as dbp
+import tuning
 
 
 def _current_wnba_season() -> str:
     today = date.today()
-    return str(today.year) if 5 <= today.month <= 9 else str(today.year + 1)
+    return str(today.year if today.month >= 5 else today.year - 1)
 
 
 def _prev_wnba_season() -> str:
@@ -41,6 +42,16 @@ ESPN_BASE    = "https://site.api.espn.com/apis/site/v2/sports/basketball/wnba"
 ESPN_WEB     = "https://site.web.api.espn.com/apis/common/v3/sports/basketball/wnba"
 
 _player_cache: dict | None = None   # name (lower) -> {id, full_name, team}
+
+
+def _game_date(raw_date: str):
+    """ESPN timestamps are UTC; grade games on the US Eastern gameday."""
+    if not raw_date:
+        return pd.NaT
+    stamp = pd.Timestamp(raw_date)
+    if stamp.tzinfo is not None:
+        stamp = stamp.tz_convert("America/New_York").tz_localize(None)
+    return stamp.normalize()
 
 
 def _build_player_cache() -> dict:
@@ -212,7 +223,7 @@ def fetch_game_log(player_id: str, season: str = None) -> pd.DataFrame:
                 # Parse date
                 raw_date = meta.get("gameDate", meta.get("date", ""))
                 try:
-                    game_date = pd.to_datetime(raw_date[:10]) if raw_date else pd.NaT
+                    game_date = _game_date(raw_date)
                 except Exception:
                     game_date = pd.NaT
 
@@ -346,7 +357,7 @@ def _next_opponent(team_id: str, last_game_date) -> dict | None:
         if not mine or not opp:
             continue
         try:
-            game_date = pd.to_datetime(event["date"][:10])
+            game_date = _game_date(event["date"])
         except Exception:
             continue
         days_rest = 2.0
@@ -399,9 +410,10 @@ def predict(player_name: str) -> dict:
     if not player:
         raise ValueError(f"WNBA player '{player_name}' not found.")
 
-    df = fetch_game_log(player["id"])
+    tuned = tuning.load_active("WNBA")
+    df = fetch_game_log(player["id"], season=_current_wnba_season())
     current_season_n = len(df)
-    if current_season_n < 12:
+    if tuned or current_season_n < 12:
         df_prev = fetch_game_log(player["id"], season=_prev_wnba_season())
         if not df_prev.empty:
             df = pd.concat([df_prev, df], ignore_index=True)
@@ -445,79 +457,85 @@ def predict(player_name: str) -> dict:
     else:
         proj_min = float(df["MIN"].mean())
 
-    feature_df   = _build_features(df)
-    n            = len(feature_df)
-    small_sample = n < SMALL_SAMPLE_CUTOFF
-    # Below the cutoff, a shallow/regularized tree (see max_depth/reg_lambda
-    # below) never reliably splits on def-vs-position — too few rows to learn
-    # a real coefficient — so those columns are dropped from the tree and
-    # applied instead as an explicit post-prediction multiplier further down.
-    # At/above the cutoff, the tree has enough repeated matchups to learn it
-    # itself, so it stays a regular feature and no multiplier is applied.
-    cols = FEATURE_COLS if small_sample else FEATURE_COLS + DEF_VS_POS_COLS
+    if tuned:
+        predictions = tuning.predict_tuned(df, next_game, tuned)
+        current_games = df.tail(current_season_n) if current_season_n else df
+        for stat in STATS:
+            predictions[stat]["season_avg"] = round(float(current_games[stat].mean()), 1)
+    else:
+        feature_df   = _build_features(df)
+        n            = len(feature_df)
+        small_sample = n < SMALL_SAMPLE_CUTOFF
+        # Below the cutoff, a shallow/regularized tree (see max_depth/reg_lambda
+        # below) never reliably splits on def-vs-position — too few rows to learn
+        # a real coefficient — so those columns are dropped from the tree and
+        # applied instead as an explicit post-prediction multiplier further down.
+        # At/above the cutoff, the tree has enough repeated matchups to learn it
+        # itself, so it stays a regular feature and no multiplier is applied.
+        cols = FEATURE_COLS if small_sample else FEATURE_COLS + DEF_VS_POS_COLS
 
-    X          = feature_df[cols].values
-    X_next     = _next_features(df, avg_def_rtg, avg_pace, avg_pos, team_pace,
-                                 team_stats, player_pos, pos_def, next_game, cols)
-    weights    = np.ones(n)
-    weights[-10:] = 2.1
+        X          = feature_df[cols].values
+        X_next     = _next_features(df, avg_def_rtg, avg_pace, avg_pos, team_pace,
+                                     team_stats, player_pos, pos_def, next_game, cols)
+        weights    = np.ones(n)
+        weights[-10:] = 2.1
 
-    # Fewer training rows → fewer trees and shallower depth to prevent overfitting
-    n_estimators = max(30, min(150, n * 8))
-    max_depth    = 2 if small_sample else 3
+        # Fewer training rows → fewer trees and shallower depth to prevent overfitting
+        n_estimators = max(30, min(150, n * 8))
+        max_depth    = 2 if small_sample else 3
 
-    predictions: dict = {}
-    for stat in STATS:
-        y = feature_df[stat].values
-        model = XGBRegressor(
-            n_estimators=n_estimators,
-            max_depth=max_depth,
-            learning_rate=0.08,
-            subsample=0.8,
-            colsample_bytree=0.8,
-            reg_lambda=5.0 if small_sample else 1.0,
-            random_state=42,
-            verbosity=0,
-        )
-        model.fit(X, y, sample_weight=weights)
-        pred = max(0.0, float(model.predict(X_next)[0]))
+        predictions: dict = {}
+        for stat in STATS:
+            y = feature_df[stat].values
+            model = XGBRegressor(
+                n_estimators=n_estimators,
+                max_depth=max_depth,
+                learning_rate=0.08,
+                subsample=0.8,
+                colsample_bytree=0.8,
+                reg_lambda=5.0 if small_sample else 1.0,
+                random_state=42,
+                verbosity=0,
+            )
+            model.fit(X, y, sample_weight=weights)
+            pred = max(0.0, float(model.predict(X_next)[0]))
 
-        # Positional defense adjustment, small-sample players only — see note
-        # above. Larger-sample players already got this from the tree itself.
-        if small_sample and next_game:
-            stat_key       = stat.lower()
-            opp_def_vs_pos = dbp.get_def_vs_pos(next_game["opp_abbr"], player_pos, stat_key,
-                                                 pos_def, avg_pos[stat_key])
-            def_factor     = opp_def_vs_pos / avg_pos[stat_key] if avg_pos[stat_key] else 1.0
-            def_factor     = min(1.15, max(0.85, def_factor))
-            pred          *= def_factor
+            # Positional defense adjustment, small-sample players only — see note
+            # above. Larger-sample players already got this from the tree itself.
+            if small_sample and next_game:
+                stat_key       = stat.lower()
+                opp_def_vs_pos = dbp.get_def_vs_pos(next_game["opp_abbr"], player_pos, stat_key,
+                                                     pos_def, avg_pos[stat_key])
+                def_factor     = opp_def_vs_pos / avg_pos[stat_key] if avg_pos[stat_key] else 1.0
+                def_factor     = min(1.15, max(0.85, def_factor))
+                pred          *= def_factor
 
-        curr_games   = df[stat].tail(current_season_n) if current_season_n > 0 else df[stat]
-        curr_min     = df["MIN"].tail(current_season_n) if current_season_n > 0 else df["MIN"]
-        season_avg   = float(curr_games.mean())
-        std          = float(curr_games.std())
-        curr_min_avg = float(curr_min.mean())
+            curr_games   = df[stat].tail(current_season_n) if current_season_n > 0 else df[stat]
+            curr_min     = df["MIN"].tail(current_season_n) if current_season_n > 0 else df["MIN"]
+            season_avg   = float(curr_games.mean())
+            std          = float(curr_games.std())
+            curr_min_avg = float(curr_min.mean())
 
-        # Symmetric sanity band around the season average, then a minutes-based
-        # ceiling on top (per-minute rate x projected minutes, +15% headroom).
-        lo = max(0.0, season_avg - 2 * std)
-        hi = season_avg + 2 * std
-        if curr_min_avg > 0:
-            hi = min(hi, season_avg / curr_min_avg * proj_min * 1.15)
-        hi   = max(hi, lo)
-        pred = float(np.clip(pred, lo, hi))
+            # Symmetric sanity band around the season average, then a minutes-based
+            # ceiling on top (per-minute rate x projected minutes, +15% headroom).
+            lo = max(0.0, season_avg - 2 * std)
+            hi = season_avg + 2 * std
+            if curr_min_avg > 0:
+                hi = min(hi, season_avg / curr_min_avg * proj_min * 1.15)
+            hi   = max(hi, lo)
+            pred = float(np.clip(pred, lo, hi))
 
-        # Outcome spread: model's own training-row error, bumped for in-sample
-        # optimism and floored by the player's raw volatility. Feeds _attach_p_over().
-        resid = y - model.predict(X)
-        sigma = max(float(np.std(resid)) * 1.15, 0.6 * std, 0.5)
+            # Outcome spread: model's own training-row error, bumped for in-sample
+            # optimism and floored by the player's raw volatility. Feeds _attach_p_over().
+            resid = y - model.predict(X)
+            sigma = max(float(np.std(resid)) * 1.15, 0.6 * std, 0.5)
 
-        predictions[stat] = {
-            "prediction": round(pred, 1),
-            "last5_avg":  round(float(df[stat].tail(5).mean()), 1),
-            "season_avg": round(season_avg, 1),
-            "sigma":      round(sigma, 2),
-        }
+            predictions[stat] = {
+                "prediction": round(pred, 1),
+                "last5_avg":  round(float(df[stat].tail(5).mean()), 1),
+                "season_avg": round(season_avg, 1),
+                "sigma":      round(sigma, 2),
+            }
 
     game_log = (
         df.tail(20)[["GAME_DATE", "MATCHUP", "OPP_NAME", "OPP_LOGO", "HOME", "MIN", "PTS", "AST", "REB", "OPP_OFF_RANK", "OPP_DEF_RANK"]]
@@ -546,6 +564,8 @@ def predict(player_name: str) -> dict:
                 "off_rank": team_stats.get(next_game["opp_abbr"], {}).get("off_rank"),
             } if next_game else None
         ),
+        "model_version": tuned["version"] if tuned else "legacy-unversioned",
+        "apply_adjustments": tuned.get("apply_adjustments", False) if tuned else True,
         "predictions":   predictions,
         "game_log":      game_log[["GAME_DATE", "OPP_ABBR", "OPP_NAME", "OPP_LOGO", "WL", "MIN", "PTS", "AST", "REB", "OPP_OFF_RANK", "OPP_DEF_RANK"]].to_dict(orient="records"),
     }
