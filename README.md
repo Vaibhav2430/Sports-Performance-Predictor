@@ -312,6 +312,90 @@ Keep backups of the hosted database after cutover. The local migration snapshot
 is a point-in-time backup and will not contain predictions saved later. Returning
 to local mode without exporting newer records would hide those newer predictions.
 
+## Ongoing encrypted backups
+
+`backend/backups.py` exports a transactionally consistent snapshot of CourtCast's
+predictions (including original forecasts and actuals), accuracy/baseline documents,
+other saved documents, API quota counters, and cached betting lines. It excludes
+environment secrets, database accounts, and temporary job leases. This is an
+application-data recovery archive, not a full Supabase account/schema/Storage dump.
+The versioned JSON export has row counts and a SHA-256 integrity manifest, is
+compressed and authenticated-encrypted with Fernet, and is decrypted and verified
+before atomic publication. Only encrypted `.ccbackup` files are written.
+
+Set `BACKUP_ENABLED=true`, `BACKUP_ENCRYPTION_KEY` to a generated Fernet key, and
+optionally `BACKUP_DIRECTORY` to a persistent private directory. The default is
+`backend/data_cache/backups`. The backend checks hourly and makes one verified
+copy per UTC day, including immediately after a missed day when restarted.
+`BACKUP_RETENTION_DAYS=30` removes old copies only after a new valid copy is saved.
+Missing keys or failed exports never produce plaintext or replace the previous
+backup. Local automation requires the backend and computer to be running.
+
+Keep the encryption key in a password manager separately from the backups.
+The locally configured recovery-key copy is `backend/data_cache/backups/restore-key.txt`
+(private file permissions, excluded from Git). Losing the key makes the encrypted
+archives unrecoverable. The `.env` file, backup files, and recovery key must never
+be committed. On ephemeral cloud hosts use durable backup storage or the offsite
+workflow below; local container files do not survive all redeployments.
+
+Create a backup or verify a restore from the `backend` directory:
+
+```sh
+../.venv/bin/python backups.py
+../.venv/bin/python backups.py --restore data_cache/backups/courtcast-YYYY-MM-DD.ccbackup
+```
+
+Verification is read-only. To recover missing records, configure `DATABASE_URL`
+for the destination database (create `courtcast` with `migrations/001_storage.sql`
+first if empty) and explicitly add `--apply` to the restore command. Recovery
+merges missing records, fills missing grading, keeps newer records/documents, and
+never lowers existing quota counters. It does not erase the target to recreate a
+past point in time. Stop writers during recovery and test against a separate
+database/schema before recovering production. Backups of auth users, schema
+changes, secrets, and external assets require their own backup strategy.
+
+`.github/workflows/database-backup.yml` prepares a daily offsite run at **09:17 UTC**
+and manual runs from GitHub Actions. It uploads only encrypted archives with a
+30-day artifact retention. It needs two GitHub Actions repository secrets:
+`COURTCAST_BACKUP_DATABASE_URL` (the dedicated read-only export login) and
+`COURTCAST_BACKUP_ENCRYPTION_KEY` (the same private recovery key). Never publish
+these values as repository files or ordinary Actions variables. Provision the
+read-only login using `backend/setup_backups.py`; its private connection is stored
+as `BACKUP_DATABASE_URL` in backend `.env` and verified to lack write permission.
+The cloud workflow is **not active** until the secrets are configured and the
+workflow is pushed to the repository's default branch. Scheduled jobs can be
+delayed/disabled by GitHub; review the run history and failure notifications.
+Artifacts expire after retention and are not permanent archival storage.
+
+## Website-to-backend connection
+
+All frontend requests use `frontend/src/api.js`. For separate frontend/backend
+hosts set **`VITE_API_BASE_URL=https://YOUR-BACKEND-HOST`** in the frontend hosting
+provider's build settings, then rebuild/redeploy the frontend. This address is
+public configuration; no database URLs, admin tokens, or other secrets may use
+the `VITE_` prefix. HTTPS backend URLs are validated during production builds;
+localhost, insecure HTTP, credentials in URLs, and query/fragment values are
+rejected. Leave blank for the local Vite proxy or an explicitly configured
+same-origin production reverse proxy. `/api` is also supported if a production
+gateway forwards that path to the Python backend; Vite's proxy only works in
+development and does not create such a production gateway automatically.
+
+On the backend host set **`APP_ENV=production`** and
+**`CORS_ALLOWED_ORIGINS=https://YOUR-WEBSITE-HOST`**. Add multiple exact HTTPS origins
+with commas (for example the primary domain and its `www` domain). Production
+startup rejects missing origins, HTTP origins, paths, embedded credentials, and
+wildcards. Development defaults allow localhost/127.0.0.1 on the development
+ports. Browser cookies are not sent; GET/POST, Content-Type, and Authorization
+preflights are supported, and Retry-After is readable for throttled requests.
+Preview domains must be explicitly added instead of allowing all Vercel domains.
+CORS controls browser access; it does not replace the server's authentication
+and shared usage limits. Configure trusted proxy forwarding for the chosen
+backend host before launch so per-IP rate limiting identifies real visitors.
+
+Both hosted addresses remain to be assigned when hosting is selected. The code
+is configured for this separation, but creating a hosting account or a public
+backend endpoint is a separate deployment step.
+
 Run optional live persistence tests with
 `COURTCAST_INTEGRATION_TESTS=1 ../.venv/bin/python -m unittest test_postgres_storage -v`
 from `backend`. Tests create and remove a disposable private schema, leaving the

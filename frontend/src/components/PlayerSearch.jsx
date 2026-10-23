@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import axios from 'axios'
+import axios from '../api'
 
 export default function PlayerSearch({ onSearch, loading, league }) {
   const [query, setQuery]       = useState('')

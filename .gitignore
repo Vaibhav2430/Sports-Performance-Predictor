@@ -138,6 +138,10 @@ celerybeat.pid
 
 # Environments
 .env
+.env.*
+!.env.example
+*.ccbackup
+restore-key.txt
 .envrc
 .venv
 env/

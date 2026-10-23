@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import axios from 'axios'
+import axios from '../api'
 import { teamLogoUrl as teamLogo } from '../teamLogo'
 
 export default function GamesSidebar({ league, selectedGameId, onSelectGame }) {

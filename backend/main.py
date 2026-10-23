@@ -4,6 +4,8 @@ import logging
 import threading
 import database
 import season_accuracy
+import backups
+from web_config import allowed_origins
 import pandas as pd
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Query, BackgroundTasks, Request, Body, Depends
@@ -341,6 +343,8 @@ async def lifespan(_app):
     stop = threading.Event()
     worker = threading.Thread(target=_prediction_worker, args=(stop,), daemon=True)
     worker.start()
+    backup_worker = threading.Thread(target=backups.worker, args=(stop,), daemon=True)
+    backup_worker.start()
     try:
         yield
     finally:
@@ -375,10 +379,11 @@ def guard_enrichment(request: Request):
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=allowed_origins(),
+    allow_credentials=False,
+    allow_methods=['GET', 'POST'],
+    allow_headers=['Content-Type', 'Authorization'],
+    expose_headers=['Retry-After'],
 )
 
 

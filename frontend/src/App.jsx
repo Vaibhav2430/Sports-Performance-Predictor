@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import axios from 'axios'
+import axios from './api'
 import GamesSidebar from './components/GamesSidebar'
 import AccuracyCards from './components/AccuracyCards'
 import PlayerSearch from './components/PlayerSearch'

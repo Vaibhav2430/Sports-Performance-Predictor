@@ -10,6 +10,9 @@ from pathlib import Path
 import unittest
 from unittest.mock import patch
 import uuid
+import tempfile
+from cryptography.fernet import Fernet
+import backups
 
 import api_usage
 import database
@@ -137,6 +140,29 @@ class PostgresIntegrationTests(unittest.TestCase):
             for role in ('anon', 'authenticated', 'service_role'):
                 allowed = connection.execute('SELECT has_schema_privilege(%s,%s,\'USAGE\')', (role, self.schema)).fetchone()[0]
                 self.assertFalse(allowed)
+
+    def test_encrypted_backup_restores_deleted_data_and_preserves_newer_rows(self):
+        original=forecast()
+        database.insert_prediction(original)
+        database.save_document('accuracy',{'n':276})
+        storage=api_usage.PostgresUsage()
+        storage.acquire([api_usage.Budget('quota',10,3600,3)])
+        with tempfile.TemporaryDirectory() as directory,patch.dict(os.environ,{'BACKUP_DIRECTORY':directory,'BACKUP_ENCRYPTION_KEY':Fernet.generate_key().decode()}):
+            path,counts=backups.create_backup()
+            self.assertEqual(counts['predictions'],1)
+            with database.connect() as connection:
+                connection.execute('DELETE FROM predictions')
+            database.insert_prediction(forecast('Newer'))
+            database.save_document('accuracy',{'n':300})
+            storage.acquire([api_usage.Budget('quota',10,3600,4)])
+            backups.restore(path,apply=True)
+            backups.restore(path,apply=True)
+            rows=database.read_predictions()
+            self.assertEqual(len(rows),2)
+            self.assertIn(original,rows)
+            self.assertEqual(database.read_document('accuracy'),{'n':300})
+            with database.connect() as connection:
+                self.assertEqual(connection.execute('SELECT used FROM budgets').fetchone()[0],7)
 
 
 if __name__ == '__main__':

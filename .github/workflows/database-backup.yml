@@ -1,0 +1,41 @@
+name: CourtCast daily database backup
+
+on:
+  schedule:
+    - cron: '17 9 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: courtcast-database-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install backup tools
+        run: python -m pip install -r backend/requirements-backup.txt
+      - name: Export and verify encrypted application records
+        env:
+          DATABASE_URL: ${{ secrets.COURTCAST_BACKUP_DATABASE_URL }}
+          BACKUP_ENCRYPTION_KEY: ${{ secrets.COURTCAST_BACKUP_ENCRYPTION_KEY }}
+          BACKUP_DIRECTORY: ${{ runner.temp }}/courtcast-backup
+        run: python backend/backups.py
+      - name: Save encrypted backup for 30 days
+        uses: actions/upload-artifact@v4
+        with:
+          name: courtcast-backup-${{ github.run_id }}
+          path: ${{ runner.temp }}/courtcast-backup/*.ccbackup
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0

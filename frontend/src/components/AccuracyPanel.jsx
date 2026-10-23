@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import axios from 'axios'
+import axios from '../api'
 
 const STATS = [
   { key: 'PTS', label: 'Points',   color: '#17c3ff' },

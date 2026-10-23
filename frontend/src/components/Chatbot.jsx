@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import axios from 'axios'
+import axios from '../api'
 
 // Three canned questions — routing is just which chip was tapped.
 const PROMPTS = [
