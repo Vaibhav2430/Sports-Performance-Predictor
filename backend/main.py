@@ -12,7 +12,7 @@ from slowapi.errors import RateLimitExceeded
 from nba_api.stats.static import players as nba_players
 from nba_api.live.nba.endpoints import scoreboard as live_scoreboard
 from model import (
-    predict, find_player as nba_find_player, fetch_game_log as nba_fetch_game_log,
+    normalize_player_name, predict, find_player as nba_find_player, fetch_game_log as nba_fetch_game_log,
     played_second_half as nba_played_second_half,
     fetch_team_defense_stats as nba_fetch_team_defense_stats,
     fetch_team_roster_averages as nba_fetch_team_roster_averages,
@@ -24,21 +24,29 @@ import tracker
 import injuries
 import team_context
 import chatbot
+from nba_data import NoHistory, HistoryUnavailable
 
 logger = logging.getLogger(__name__)
 
 def _seed_if_needed():
-    """Seed both leagues on startup, but only if we haven't seeded today.
-    Stagger requests so we don't hit PrizePicks simultaneously."""
-    from datetime import date
-    today = str(date.today())
-    log = tracker.load_log()
-    already_today = any(e["date"] == today for e in log)
-    if already_today:
-        return
-    _seed_all("WNBA")
-    time.sleep(5)  # stagger to avoid simultaneous requests
-    _seed_all("NBA")
+    """Retry each league independently; _seed_all skips saved player/game pairs."""
+    for league in ("NBA", "WNBA"):
+        try:
+            _seed_all(league)
+        except Exception:
+            logger.exception("Automatic predictions failed for %s; will retry", league)
+
+
+def _prediction_worker(stop):
+    while not stop.is_set():
+        _seed_if_needed()
+        try:
+            _resolve_all()
+        except Exception:
+            logger.exception("Automatic box-score grading failed; will retry")
+        if stop.wait(3600):
+            break
+
 
 MIN_HISTORY_GAMES = 3          # need at least this many missed/normal games to trust history
 HIST_MULT_BOUNDS  = (0.6, 1.6)  # clamp empirical multiplier to +/-40% either way
@@ -282,7 +290,7 @@ def _normal_cdf(z: float) -> float:
 def _adjust_and_record(result: dict, league: str, injury: dict | None, target_id=None) -> None:
     """Preserve each forecast stage so adjustment effects can be paired later."""
     def snapshot():
-        return {stat: float(p["prediction"]) for stat, p in result["predictions"].items()}
+        return {stat: float(p["prediction"]) for stat, p in result["predictions"].items() if p.get("prediction") is not None}
 
     stages = {"raw": snapshot()}
     if result.get("apply_adjustments", True):
@@ -304,7 +312,7 @@ def _attach_p_over(result: dict) -> None:
     for stat, p in result.get("predictions", {}).items():
         line  = lines.get(stat)
         sigma = p.get("sigma")
-        if line is None or not sigma:
+        if line is None or not sigma or p.get("prediction") is None:
             continue
         threshold = math.floor(float(line)) + 0.5 if result.get("model_version", "").startswith("history-v1-") else float(line)
         z = (threshold - float(p["prediction"])) / max(float(sigma), 1e-6)
@@ -320,8 +328,13 @@ def _attach_p_over(result: dict) -> None:
 
 @asynccontextmanager
 async def lifespan(_app):
-    threading.Thread(target=_seed_if_needed, daemon=True).start()
-    yield
+    stop = threading.Event()
+    worker = threading.Thread(target=_prediction_worker, args=(stop,), daemon=True)
+    worker.start()
+    try:
+        yield
+    finally:
+        stop.set()
 
 
 app = FastAPI(title="NBA Stat Predictor API", lifespan=lifespan)
@@ -339,30 +352,66 @@ app.add_middleware(
 )
 
 
+def _predict_and_record(player: str, league: str, minimum_minutes: float = 0):
+    """One prediction/injury/recording workflow for both leagues and seeding."""
+    predictor = predict if league == "NBA" else wnba_model.predict
+    finder = nba_find_player if league == "NBA" else wnba_model.find_player
+    lines = odds.get_player_lines(player, league)
+    result = predictor(player, market_lines=lines) if league == "NBA" else predictor(player)
+    result["lines"] = lines
+    injury = injuries.get_player_injury(result["player"], league)
+    result["injury"] = injury
+    p = finder(result["player"])
+    from copy import deepcopy
+    base_predictions = deepcopy(result["predictions"])
+    try:
+        _adjust_and_record(result, league, injury, target_id=p["id"] if p else None)
+    except Exception:
+        logger.exception("Optional injury adjustment failed for %s", player)
+        result["predictions"] = base_predictions
+        result["prediction_stages"] = {"raw": {k: v["prediction"] for k,v in base_predictions.items() if v.get("prediction") is not None}}
+        result.setdefault("warnings", []).append("Injury adjustments are unavailable; base forecast shown.")
+    _attach_p_over(result)
+    for stat, values in result["predictions"].items():
+        if values.get("prediction") is not None and not math.isfinite(float(values["prediction"])):
+            raise RuntimeError(f"Invalid numerical prediction for {stat}")
+    inj_status = injury["status"] if injury else None
+    is_out = inj_status and inj_status.lower() == "out"
+    recent = result.get("game_log", [])[:5]
+    enough_minutes = not recent or sum(g["MIN"] for g in recent) / len(recent) >= minimum_minutes
+    if p and not is_out and enough_minutes:
+        game_date = odds.get_player_game_date(player, league)
+        tracker.log_prediction(result["player"], p["id"], league, lines, result["predictions"],
+                               injury_status=inj_status, game_date=game_date,
+                               prediction_stages=result["prediction_stages"], model_version=result.get("model_version"))
+    return _json_safe(result)
+
+
+def _json_safe(value):
+    """Missing metadata becomes JSON null; forecast values are validated above."""
+    import numbers
+    if isinstance(value, dict):
+        return {k: _json_safe(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_json_safe(v) for v in value]
+    if isinstance(value, numbers.Real) and not isinstance(value, bool):
+        return value if math.isfinite(float(value)) else None
+    return value
+
+
 @app.get("/predict")
 @limiter.limit("20/minute")
 def predict_endpoint(request: Request, player: str = Query(..., description="Player full name")):
     try:
-        result = predict(player)
-        lines = odds.get_player_lines(player, "NBA")
-        result["lines"] = lines
-        injury = injuries.get_player_injury(player, "NBA")
-        result["injury"] = injury
-        p = nba_find_player(player)
-        _adjust_and_record(result, "NBA", injury, target_id=p["id"] if p else None)
-        _attach_p_over(result)
-        inj_status = injury["status"] if injury else None
-        is_out = inj_status and inj_status.lower() == "out"
-        if p and not is_out:
-            game_date = odds.get_player_game_date(player, "NBA")
-            tracker.log_prediction(player, p["id"], "NBA", lines, result["predictions"],
-                                    injury_status=inj_status, game_date=game_date,
-                                    prediction_stages=result["prediction_stages"], model_version=result.get("model_version"))
-        return result
+        return _predict_and_record(player, "NBA")
+    except NoHistory as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except HistoryUnavailable as e:
+        raise HTTPException(status_code=503, detail=str(e))
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception:
-        logger.exception("Prediction failed for player=%r", player)
+        logger.exception("NBA prediction failed for player=%r", player)
         raise HTTPException(status_code=500, detail="Prediction failed")
 
 
@@ -372,8 +421,8 @@ def search_endpoint(request: Request, q: str = Query(default="")):
     all_players = sorted(p["full_name"] for p in nba_players.get_players() if p["is_active"])
     if not q:
         return all_players[:50]
-    q_lower = q.lower()
-    matches = [name for name in all_players if q_lower in name.lower()]
+    q_lower = normalize_player_name(q)
+    matches = [name for name in all_players if q_lower in normalize_player_name(name)]
     return matches[:15]
 
 
@@ -387,22 +436,7 @@ def wnba_search(request: Request, q: str = Query(default="")):
 @limiter.limit("20/minute")
 def wnba_predict(request: Request, player: str = Query(...)):
     try:
-        result = wnba_model.predict(player)
-        lines = odds.get_player_lines(player, "WNBA")
-        result["lines"] = lines
-        injury = injuries.get_player_injury(player, "WNBA")
-        result["injury"] = injury
-        p = wnba_model.find_player(player)
-        _adjust_and_record(result, "WNBA", injury, target_id=p["id"] if p else None)
-        _attach_p_over(result)
-        inj_status = injury["status"] if injury else None
-        is_out = inj_status and inj_status.lower() == "out"
-        if p and not is_out:
-            game_date = odds.get_player_game_date(player, "WNBA")
-            tracker.log_prediction(player, p["id"], "WNBA", lines, result["predictions"],
-                                    injury_status=inj_status, game_date=game_date,
-                                    prediction_stages=result["prediction_stages"], model_version=result.get("model_version"))
-        return result
+        return _predict_and_record(player, "WNBA")
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception:
@@ -536,6 +570,16 @@ def _resolve_all_locked():
         tracker.save_log(log)
 
 
+@app.get("/accuracy/backtest")
+def season_backtest():
+    import json
+    from pathlib import Path
+    path = Path(__file__).parent / "evaluation_results" / "nba_season" / "report.json"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Season backtest has not been run")
+    return json.loads(path.read_text())
+
+
 @app.get("/accuracy")
 @limiter.limit("30/minute")
 def accuracy_endpoint(request: Request, background_tasks: BackgroundTasks, league: str = Query(default=None)):
@@ -574,33 +618,19 @@ def _seed_all(league: str):
     if not all_lines:
         return
     log = tracker.load_log()
-    logged_pairs = {(e["player"], e["date"]) for e in log}
+    logged_pairs = {(e["player"], e["date"]) for e in log if e.get("league") == league and tracker.has_valid_predictions(e)}
 
-    for pp_name, lines in all_lines.items():
-        game_date = odds.get_player_game_date(pp_name, league) or str(date.today())
-        if (pp_name, game_date) in logged_pairs:
-            continue
+    finder = nba_find_player if league == "NBA" else wnba_model.find_player
+    for pp_name in all_lines:
         try:
-            if league == "NBA":
-                result = predict(pp_name)
-            else:
-                result = wnba_model.predict(pp_name)
-
-            # Skip players averaging under 15 min
-            game_log = result.get("game_log", [])
-            if game_log:
-                recent_min = sum(g["MIN"] for g in game_log[:5]) / min(5, len(game_log))
-                if recent_min < 15:
-                    continue
-
-            player_name = result["player"]
-            p = nba_find_player(player_name) if league == "NBA" else wnba_model.find_player(player_name)
-            if p:
-                result["lines"] = lines
-                _attach_p_over(result)
-                tracker.log_prediction(player_name, p["id"], league, lines, result["predictions"], game_date=game_date)
+            player = finder(pp_name)
+            player_name = player["full_name"] if player else pp_name
+            game_date = odds.get_player_game_date(pp_name, league) or str(date.today())
+            if (player_name, game_date) in logged_pairs:
+                continue
+            _predict_and_record(pp_name, league, minimum_minutes=15)
         except Exception:
-            continue
+            logger.exception("Prediction failed for %s player %s; will retry", league, pp_name)
 
 
 @app.post("/accuracy/seed")
@@ -644,9 +674,19 @@ def team_preview(
 @app.get("/games/today")
 @limiter.limit("30/minute")
 def games_today(request: Request):
+    from schedule import nba_games_today
+    try:
+        return nba_games_today()
+    except Exception:
+        logger.exception("Dated NBA schedule failed; trying NBA live feed")
     try:
         board = live_scoreboard.ScoreBoard()
         data  = board.get_dict()
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+        today = datetime.now(ZoneInfo("America/New_York")).date().isoformat()
+        if data.get("scoreboard", {}).get("gameDate") != today:
+            raise ValueError("NBA live scoreboard is for a different day")
         games = data.get("scoreboard", {}).get("games", [])
         result = []
         for g in games:
@@ -673,4 +713,5 @@ def games_today(request: Request):
             })
         return result
     except Exception:
-        return []
+        logger.exception("NBA schedule unavailable")
+        raise HTTPException(status_code=503, detail="Schedule temporarily unavailable")

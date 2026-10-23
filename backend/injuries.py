@@ -1,7 +1,7 @@
 import time
 import json
 import os
-import difflib
+import unicodedata
 import requests
 
 CACHE_TTL = 1800  # 30 minutes
@@ -179,18 +179,14 @@ def get_player_injury(player_name: str, league: str) -> dict | None:
     if nl in injuries:
         return injuries[nl]
 
-    # Normalize: strip dots/apostrophes for fuzzy match
+    # Injury status requires an exact identity match, never a similar name.
+    # Accept accents and punctuation differences without changing name tokens.
     def normalize(s):
-        return s.replace(".", "").replace("'", "").replace("-", " ").lower()
+        s = "".join(c for c in unicodedata.normalize("NFKD", s)
+                    if not unicodedata.combining(c))
+        s = s.casefold().replace(".", "").replace("'", "").replace("’", "").replace("-", " ")
+        return " ".join(s.split())
 
-    norm_nl = normalize(nl)
-    norm_map = {normalize(k): v for k, v in injuries.items()}
-
-    if norm_nl in norm_map:
-        return norm_map[norm_nl]
-
-    matches = difflib.get_close_matches(norm_nl, norm_map.keys(), n=1, cutoff=0.82)
-    if matches:
-        return norm_map[matches[0]]
-
-    return None
+    target = normalize(nl)
+    matches = [record for name, record in injuries.items() if normalize(name) == target]
+    return matches[0] if len(matches) == 1 else None

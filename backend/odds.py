@@ -1,4 +1,5 @@
 import os
+import unicodedata
 import time
 import requests
 from datetime import datetime
@@ -25,6 +26,7 @@ GAME_DATE_TZ = ZoneInfo("America/New_York")
 
 _cache:       dict = {}
 _cache_time:  dict = {}
+_matchups: dict = {}
 _game_dates:  dict = {}   # {league: {player_name: "YYYY-MM-DD"}}
 CACHE_TTL = 1800  # 30 minutes
 
@@ -40,7 +42,8 @@ def _commence_time_to_game_date(commence_time: str) -> str | None:
 
 
 def _normalize(name: str) -> str:
-    return name.lower().replace(".", "").replace("'", "").replace("-", " ").strip()
+    name = "".join(c for c in unicodedata.normalize("NFKD", name) if not unicodedata.combining(c))
+    return " ".join(name.casefold().replace(".", "").replace("'", "").replace("’", "").replace("-", " ").split())
 
 
 def fetch_lines(league: str) -> dict:
@@ -71,6 +74,7 @@ def fetch_lines(league: str) -> dict:
 
     result:     dict = {}
     game_dates: dict = {}
+    matchups = {}
 
     for event in events:
         event_id = event.get("id")
@@ -109,6 +113,7 @@ def fetch_lines(league: str) -> dict:
                         if player not in result:
                             result[player] = {}
                         result[player][stat] = float(line)
+                        matchups[player] = {"home_team": event.get("home_team"), "away_team": event.get("away_team"), "date": game_date}
                         seen.add(player)
                         if game_date:
                             game_dates[player] = game_date
@@ -116,6 +121,7 @@ def fetch_lines(league: str) -> dict:
     _cache[key]       = result
     _cache_time[key]  = now
     _game_dates[key]  = game_dates
+    _matchups[key] = matchups
     return result
 
 
@@ -128,10 +134,6 @@ def _resolve_player_key(player_name: str, all_lines: dict) -> str | None:
 
     if norm_target in norm_map:
         return norm_map[norm_target]
-
-    matches = get_close_matches(norm_target, norm_map.keys(), n=1, cutoff=0.82)
-    if matches:
-        return norm_map[matches[0]]
 
     return None
 
@@ -158,3 +160,9 @@ def get_player_game_date(player_name: str, league: str) -> str | None:
         return None
 
     return _game_dates.get(league.upper(), {}).get(key)
+
+
+def get_player_matchup(player_name: str, league: str) -> dict:
+    all_lines = fetch_lines(league)
+    key = _resolve_player_key(player_name, all_lines)
+    return _matchups.get(league, {}).get(key, {})

@@ -1078,3 +1078,6 @@ body { overflow: hidden; }
   .home-main .search-hero { margin-bottom: clamp(20px, 5vh, 40px); }
   .home-main .home-explore { margin-top: clamp(24px, 6vh, 48px); }
 }
+
+.prediction-note { margin: 16px 0; padding: 12px 16px; border: 1px solid #665034; border-radius: 10px; background: #201b14; color: #e9c797; font-size: 13px; line-height: 1.5; }
+.prediction-note p { margin: 5px 0; }

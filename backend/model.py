@@ -1,4 +1,5 @@
 import time
+import unicodedata
 from datetime import date
 import numpy as np
 import pandas as pd
@@ -10,6 +11,8 @@ from nba_api.stats.static import players as nba_players, teams as nba_teams
 from xgboost import XGBRegressor
 import defense_by_position as dbp
 import tuning
+from nba_data import player_games, HistoryUnavailable, NoHistory
+from nba_context import get_context as _prediction_context
 
 STATS = ["PTS", "AST", "REB"]
 
@@ -48,6 +51,7 @@ def fetch_team_defense_stats() -> dict:
         season=CURRENT_SEASON,
         measure_type_detailed_defense="Advanced",
         per_mode_detailed="PerGame",
+        timeout=10,
     )
     df = stats.get_data_frames()[0].copy()
     df["TEAM_ABBREVIATION"] = df["TEAM_ID"].map(id_to_abbr)
@@ -186,57 +190,48 @@ def _fetch_league_schedule() -> pd.DataFrame:
 
 
 def _next_game(team_abbr: str, last_game_date) -> dict | None:
-    """Next scheduled (not-yet-played) game for `team_abbr`, as
-    {"opp_abbr", "home", "days_rest"} - or None if the schedule can't be read
-    or every game is already final (offseason)."""
-    sched = _fetch_league_schedule()
-    if sched.empty or not team_abbr:
-        return None
-    is_team  = (sched["homeTeam_teamTricode"] == team_abbr) | (sched["awayTeam_teamTricode"] == team_abbr)
-    upcoming = sched[is_team & (sched["gameStatus"] == 1)].copy()  # 1 = scheduled
-    if upcoming.empty:
-        return None
-    upcoming["_dt"] = pd.to_datetime(upcoming["gameDateEst"], errors="coerce", utc=True).dt.tz_localize(None)
-    upcoming = upcoming.dropna(subset=["_dt"]).sort_values("_dt")
-    if upcoming.empty:
+    """Today's scheduled matchup, using the shared dated scoreboard."""
+    from schedule import nba_games_today
+    try:
+        game = next((g for g in nba_games_today() if g["statusCode"] == 1 and
+                     team_abbr in (g["home"]["tricode"], g["away"]["tricode"])), None)
+        if not game:
+            return None
+        home = game["home"]["tricode"] == team_abbr
+        rest = (pd.Timestamp(date.today()) - pd.Timestamp(last_game_date)).days if last_game_date is not None else 2
+        return {"opp_abbr": game["away" if home else "home"]["tricode"],
+                "home": float(home), "days_rest": float(np.clip(rest, 0, 10))}
+    except Exception:
         return None
 
-    row     = upcoming.iloc[0]
-    is_home = row["homeTeam_teamTricode"] == team_abbr
-    opp     = row["awayTeam_teamTricode"] if is_home else row["homeTeam_teamTricode"]
 
-    days_rest = 2.0
-    if last_game_date is not None and pd.notna(last_game_date):
-        gap = (row["_dt"].normalize() - pd.Timestamp(last_game_date).normalize()).days
-        days_rest = float(np.clip(gap, 0, 10))
-    return {"opp_abbr": opp, "home": 1.0 if is_home else 0.0, "days_rest": days_rest}
+def normalize_player_name(name: str) -> str:
+    return "".join(c for c in unicodedata.normalize("NFKD", name)
+                   if not unicodedata.combining(c)).casefold().strip()
 
 
 def find_player(name: str) -> dict | None:
     all_p = nba_players.get_players()
-    nl = name.lower().strip()
-    exact = [p for p in all_p if p["full_name"].lower() == nl]
+    nl = normalize_player_name(name)
+    if not nl:
+        return None
+    exact = [p for p in all_p if normalize_player_name(p["full_name"]) == nl]
     if exact:
         return exact[0]
-    partial = [p for p in all_p if nl in p["full_name"].lower()]
-    return partial[0] if partial else None
+    partial = [p for p in all_p if nl in normalize_player_name(p["full_name"])]
+    if len(partial) == 1:
+        return partial[0]
+    from nba_data import player_directory
+    current = player_directory(CURRENT_SEASON)
+    exact = [p for p in current if normalize_player_name(p["full_name"]) == nl]
+    if exact:
+        return exact[0]
+    partial = [p for p in current if nl in normalize_player_name(p["full_name"])]
+    return partial[0] if len(partial) == 1 else None
 
 
 def fetch_game_log(player_id: int, season: str = CURRENT_SEASON) -> pd.DataFrame:
-    time.sleep(0.65)
-    log = playergamelog.PlayerGameLog(player_id=player_id, season=season)
-    df = log.get_data_frames()[0]
-    if df.empty:
-        return pd.DataFrame()
-
-    df = df[["GAME_DATE", "MATCHUP", "WL", "MIN", "PTS", "AST", "REB", "Game_ID"]].copy()
-    df["GAME_DATE"] = pd.to_datetime(df["GAME_DATE"])
-    df = df.sort_values("GAME_DATE").reset_index(drop=True)
-    for col in ["PTS", "AST", "REB", "MIN"]:
-        df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
-    df["HOME"] = df["MATCHUP"].apply(lambda x: 0 if "@" in x else 1)
-    df["DAYS_REST"] = df["GAME_DATE"].diff().dt.days.fillna(2).clip(0, 10)
-    return df
+    return player_games(player_id, season)
 
 
 def played_second_half(game_id: str, player_id: int) -> bool | None:
@@ -338,33 +333,54 @@ def _next_features(
     return np.array([[feats[c] for c in FEATURE_COLS]])
 
 
-def predict(player_name: str) -> dict:
+def predict(player_name: str, market_lines: dict | None = None) -> dict:
     player = find_player(player_name)
     if not player:
         raise ValueError(f"Player '{player_name}' not found.")
 
     tuned = tuning.load_active("NBA")
-    df = fetch_game_log(player["id"])
+    warnings = []
+    try:
+        df = fetch_game_log(player["id"])
+    except HistoryUnavailable:
+        df = pd.DataFrame()
+        warnings.append("Current-season box scores are unavailable.")
+    if df.attrs.get("history_source") == "stale_cache":
+        warnings.append("Using saved NBA box scores while the live feed is unavailable.")
     current_season_n = len(df)
     if tuned or current_season_n < 15:
-        df_prev = fetch_game_log(player["id"], season=_prev_nba_season())
+        try:
+            df_prev = fetch_game_log(player["id"], season=_prev_nba_season())
+        except HistoryUnavailable:
+            df_prev = pd.DataFrame()
+            warnings.append("Previous-season box scores are unavailable.")
         if not df_prev.empty:
-            df = pd.concat([df_prev, df], ignore_index=True)
+            df = df_prev.copy() if df.empty else pd.concat([df_prev, df], ignore_index=True)
             df = df.sort_values("GAME_DATE").reset_index(drop=True)
             df["DAYS_REST"] = df["GAME_DATE"].diff().dt.days.fillna(2).clip(0, 10)
-    if len(df) < 15:
-        raise ValueError(f"Not enough game data for {player['full_name']}.")
+    if df.empty:
+        from market_estimate import predict_from_market
+        return predict_from_market(player, market_lines, _prediction_context(), warnings)
 
-    team_stats  = fetch_team_defense_stats()
-    avg_def_rtg = float(np.mean([v["def_rtg"] for v in team_stats.values()]))
-    avg_pace    = float(np.mean([v["pace"]    for v in team_stats.values()]))
+    df["GAME_DATE"] = pd.to_datetime(df["GAME_DATE"], errors="coerce")
+    df = df.dropna(subset=["GAME_DATE"]).sort_values("GAME_DATE").reset_index(drop=True)
+    df["DAYS_REST"] = df["GAME_DATE"].diff().dt.days.fillna(2).clip(0, 10)
+    context = _prediction_context()
+    team_stats = context["team_stats"]
+    if not team_stats or not context["pos_def"]:
+        warnings.append("Matchup data is refreshing. Available game history and league-average matchup values are used.")
+    def average(key, fallback):
+        values = [v[key] for v in team_stats.values() if v.get(key) is not None and np.isfinite(v[key]) and v[key] > 0]
+        return float(np.mean(values)) if values else fallback
+    avg_def_rtg = average("def_rtg", 110.0)
+    avg_pace = average("pace", 100.0)
 
     player_team_abbr = df["MATCHUP"].iloc[-1].split(" ")[0]
     player_team_info = team_stats.get(player_team_abbr, {})
 
     # Positional defense: pts/ast/reb each team allows to this player's position
-    player_pos = dbp.get_nba_player_pos(player["id"], player["full_name"])
-    pos_def    = dbp.fetch_nba_def_by_pos(CURRENT_SEASON)
+    player_pos = context["positions"].get(player["full_name"].lower(), "")
+    pos_def = context["pos_def"]
     avg_pos: dict = {}
     for stat in ("pts", "ast", "reb"):
         vals = [pos_def[a][f"{player_pos}_{stat}"] for a in pos_def if pos_def[a].get(f"{player_pos}_{stat}", 0) > 0]
@@ -378,7 +394,7 @@ def predict(player_name: str) -> dict:
     # opponent's prior games - instead of one season-to-date number stamped on
     # every row. Inference (_next_features) still uses season-to-date, which is
     # the correct as-of-now value, so train and serve now mean the same thing.
-    opp_ts = _team_def_timeseries()
+    opp_ts = context["timeseries"]
     df["OPP_DEF_RTG"] = df.apply(
         lambda r: _rolling_opp(opp_ts, r["OPP"], r["GAME_DATE"], "DEF_RATING",
                                team_stats.get(r["OPP"], {}).get("def_rtg", avg_def_rtg)), axis=1)
@@ -396,7 +412,14 @@ def predict(player_name: str) -> dict:
     next_game = _next_game(player_team_abbr, df["GAME_DATE"].iloc[-1])
 
     proj_min = float(0.65 * df["MIN"].tail(3).mean() + 0.35 * df["MIN"].tail(10).mean())
-    if tuned:
+    limited_history = len(df) < 15
+    if limited_history:
+        warnings.append(f"Limited history: estimate based on {len(df)} played game(s); not enough history to train the full model.")
+        predictions = {stat: {"prediction": round(tuning.baseline(df, stat), 1),
+                             "last5_avg": round(float(df[stat].tail(5).mean()), 1),
+                             "season_avg": round(float(df[stat].tail(current_season_n).mean() if current_season_n else df[stat].mean()), 1),
+                             "sigma": round(max(1.0, tuning.scale(df, stat)), 2)} for stat in STATS}
+    elif tuned:
         predictions = tuning.predict_tuned(df, next_game, tuned)
         current_games = df.tail(current_season_n) if current_season_n else df
         for stat in STATS:
@@ -426,6 +449,7 @@ def predict(player_name: str) -> dict:
                 colsample_bytree=0.8,
                 reg_lambda=5.0 if n < 15 else 1.0,
                 random_state=42,
+                n_jobs=1,
                 verbosity=0,
             )
             model.fit(X, y, sample_weight=sample_weights)
@@ -434,7 +458,10 @@ def predict(player_name: str) -> dict:
             curr_games   = df[stat].tail(current_season_n) if current_season_n > 0 else df[stat]
             curr_min     = df["MIN"].tail(current_season_n) if current_season_n > 0 else df["MIN"]
             season_avg   = float(curr_games.mean())
-            std          = float(curr_games.std())
+            # A single current-season game has undefined sample variance.
+            # Use the available prior history until two current games exist.
+            spread_games = curr_games if len(curr_games) >= 2 else df[stat]
+            std          = float(spread_games.std()) if len(spread_games) > 1 else 0.0
             curr_min_avg = float(curr_min.mean())
 
             # Symmetric sanity band around the season average, then a minutes-based
@@ -487,8 +514,9 @@ def predict(player_name: str) -> dict:
                 "off_rank": team_stats.get(next_game["opp_abbr"], {}).get("off_rank"),
             } if next_game else None
         ),
-        "model_version": tuned["version"] if tuned else "legacy-unversioned",
-        "apply_adjustments": tuned.get("apply_adjustments", False) if tuned else True,
+        "model_version": "limited-history-average-v1" if limited_history else (tuned["version"] if tuned else "legacy-unversioned"),
+        "warnings": warnings,
+        "apply_adjustments": False if limited_history else (tuned.get("apply_adjustments", False) if tuned else True),
         "predictions":   predictions,
-        "game_log":      game_log.to_dict(orient="records"),
+        "game_log":      game_log.astype(object).where(pd.notna(game_log), None).to_dict(orient="records"),
     }

@@ -32192,5 +32192,3366 @@
     "created_at": "2026-10-22T21:16:04.101772+00:00",
     "model_version": "legacy-unversioned",
     "prediction_stages": {}
+  },
+  {
+    "player": "LeBron James",
+    "player_id": "2544",
+    "league": "NBA",
+    "date": "2026-10-22",
+    "lines": {
+      "AST": 7.5,
+      "PTS": 15.5,
+      "REB": 6.5
+    },
+    "predicted": {
+      "PTS": 13.7,
+      "AST": 6.8,
+      "REB": 7.5
+    },
+    "p_over": {
+      "PTS": 0.314,
+      "AST": 0.343,
+      "REB": 0.72
+    },
+    "actual": {},
+    "resolved": false,
+    "injury_status": null,
+    "created_at": "2026-10-22T22:06:45.490282+00:00",
+    "model_version": "legacy-unversioned",
+    "prediction_stages": {
+      "raw": {
+        "PTS": 13.7,
+        "AST": 6.8,
+        "REB": 7.5
+      },
+      "teammate": {
+        "PTS": 13.7,
+        "AST": 6.8,
+        "REB": 7.5
+      },
+      "return": {
+        "PTS": 13.7,
+        "AST": 6.8,
+        "REB": 7.5
+      },
+      "questionable": {
+        "PTS": 13.7,
+        "AST": 6.8,
+        "REB": 7.5
+      },
+      "final": {
+        "PTS": 13.7,
+        "AST": 6.8,
+        "REB": 7.5
+      }
+    }
+  },
+  {
+    "player": "James Harden",
+    "player_id": "201935",
+    "league": "NBA",
+    "date": "2026-10-22",
+    "lines": {
+      "AST": 6.5,
+      "PTS": 17.5,
+      "REB": 4.5
+    },
+    "predicted": {
+      "PTS": 20.2,
+      "AST": 7.4,
+      "REB": 2.8
+    },
+    "p_over": {
+      "PTS": 0.72,
+      "AST": 0.712,
+      "REB": 0.127
+    },
+    "actual": {},
+    "resolved": false,
+    "injury_status": null,
+    "created_at": "2026-10-22T21:17:20.484671+00:00",
+    "model_version": "legacy-unversioned",
+    "prediction_stages": {}
+  },
+  {
+    "player": "Tyrese Maxey",
+    "player_id": "1630178",
+    "league": "NBA",
+    "date": "2026-10-22",
+    "lines": {
+      "AST": 5.5,
+      "PTS": 23.5,
+      "REB": 3.5
+    },
+    "predicted": {
+      "PTS": 27.0,
+      "AST": 5.0,
+      "REB": 3.1
+    },
+    "p_over": {
+      "PTS": 0.759,
+      "AST": 0.385,
+      "REB": 0.384
+    },
+    "actual": {},
+    "resolved": false,
+    "injury_status": null,
+    "created_at": "2026-10-22T22:06:48.336123+00:00",
+    "model_version": "legacy-unversioned",
+    "prediction_stages": {
+      "raw": {
+        "PTS": 27.0,
+        "AST": 5.0,
+        "REB": 3.1
+      },
+      "teammate": {
+        "PTS": 27.0,
+        "AST": 5.0,
+        "REB": 3.1
+      },
+      "return": {
+        "PTS": 27.0,
+        "AST": 5.0,
+        "REB": 3.1
+      },
+      "questionable": {
+        "PTS": 27.0,
+        "AST": 5.0,
+        "REB": 3.1
+      },
+      "final": {
+        "PTS": 27.0,
+        "AST": 5.0,
+        "REB": 3.1
+      }
+    }
+  },
+  {
+    "player": "Donovan Mitchell",
+    "player_id": "1628378",
+    "league": "NBA",
+    "date": "2026-10-22",
+    "lines": {
+      "AST": 4.5,
+      "PTS": 26.5,
+      "REB": 4.5
+    },
+    "predicted": {
+      "PTS": 25.3,
+      "AST": 6.6,
+      "REB": 5.2
+    },
+    "p_over": {
+      "PTS": 0.412,
+      "AST": 0.948,
+      "REB": 0.672
+    },
+    "actual": {},
+    "resolved": false,
+    "injury_status": null,
+    "created_at": "2026-10-22T21:17:26.133725+00:00",
+    "model_version": "legacy-unversioned",
+    "prediction_stages": {}
+  },
+  {
+    "player": "Joel Embiid",
+    "player_id": "203954",
+    "league": "NBA",
+    "date": "2026-10-22",
+    "lines": {
+      "AST": 4.5,
+      "PTS": 22.5,
+      "REB": 7.5
+    },
+    "predicted": {
+      "PTS": 15.7,
+      "AST": 2.5,
+      "REB": 8.9
+    },
+    "p_over": {
+      "PTS": 0.077,
+      "AST": 0.059,
+      "REB": 0.783
+    },
+    "actual": {},
+    "resolved": false,
+    "injury_status": null,
+    "created_at": "2026-10-22T22:06:51.055505+00:00",
+    "model_version": "legacy-unversioned",
+    "prediction_stages": {
+      "raw": {
+        "PTS": 15.7,
+        "AST": 2.5,
+        "REB": 8.9
+      },
+      "teammate": {
+        "PTS": 15.7,
+        "AST": 2.5,
+        "REB": 8.9
+      },
+      "return": {
+        "PTS": 15.7,
+        "AST": 2.5,
+        "REB": 8.9
+      },
+      "questionable": {
+        "PTS": 15.7,
+        "AST": 2.5,
+        "REB": 8.9
+      },
+      "final": {
+        "PTS": 15.7,
+        "AST": 2.5,
+        "REB": 8.9
+      }
+    }
+  },
+  {
+    "player": "Jaylen Brown",
+    "player_id": "1627759",
+    "league": "NBA",
+    "date": "2026-10-22",
+    "lines": {
+      "AST": 3.5,
+      "PTS": 20.5,
+      "REB": 6.5
+    },
+    "predicted": {
+      "PTS": 22.4,
+      "AST": 4.5,
+      "REB": 7.4
+    },
+    "p_over": {
+      "PTS": 0.663,
+      "AST": 0.745,
+      "REB": 0.699
+    },
+    "actual": {},
+    "resolved": false,
+    "injury_status": null,
+    "created_at": "2026-10-22T22:06:54.273796+00:00",
+    "model_version": "legacy-unversioned",
+    "prediction_stages": {
+      "raw": {
+        "PTS": 22.4,
+        "AST": 4.5,
+        "REB": 7.4
+      },
+      "teammate": {
+        "PTS": 22.4,
+        "AST": 4.5,
+        "REB": 7.4
+      },
+      "return": {
+        "PTS": 22.4,
+        "AST": 4.5,
+        "REB": 7.4
+      },
+      "questionable": {
+        "PTS": 22.4,
+        "AST": 4.5,
+        "REB": 7.4
+      },
+      "final": {
+        "PTS": 22.4,
+        "AST": 4.5,
+        "REB": 7.4
+      }
+    }
+  },
+  {
+    "player": "Evan Mobley",
+    "player_id": "1630596",
+    "league": "NBA",
+    "date": "2026-10-22",
+    "lines": {
+      "AST": 3.5,
+      "PTS": 17.5,
+      "REB": 8.5
+    },
+    "predicted": {
+      "PTS": 18.5,
+      "AST": 2.6,
+      "REB": 8.3
+    },
+    "p_over": {
+      "PTS": 0.609,
+      "AST": 0.196,
+      "REB": 0.462
+    },
+    "actual": {},
+    "resolved": false,
+    "injury_status": null,
+    "created_at": "2026-10-22T21:17:34.516109+00:00",
+    "model_version": "legacy-unversioned",
+    "prediction_stages": {}
+  },
+  {
+    "player": "VJ Edgecombe",
+    "player_id": "1642845",
+    "league": "NBA",
+    "date": "2026-10-22",
+    "lines": {
+      "AST": 2.5,
+      "PTS": 10.5,
+      "REB": 4.5
+    },
+    "predicted": {
+      "PTS": 7.8,
+      "AST": 1.2,
+      "REB": 4.2
+    },
+    "p_over": {
+      "PTS": 0.268,
+      "AST": 0.183,
+      "REB": 0.417
+    },
+    "actual": {},
+    "resolved": false,
+    "injury_status": null,
+    "created_at": "2026-10-22T22:06:57.093609+00:00",
+    "model_version": "legacy-unversioned",
+    "prediction_stages": {
+      "raw": {
+        "PTS": 7.8,
+        "AST": 1.2,
+        "REB": 4.2
+      },
+      "teammate": {
+        "PTS": 7.8,
+        "AST": 1.2,
+        "REB": 4.2
+      },
+      "return": {
+        "PTS": 7.8,
+        "AST": 1.2,
+        "REB": 4.2
+      },
+      "questionable": {
+        "PTS": 7.8,
+        "AST": 1.2,
+        "REB": 4.2
+      },
+      "final": {
+        "PTS": 7.8,
+        "AST": 1.2,
+        "REB": 4.2
+      }
+    }
+  },
+  {
+    "player": "Peyton Watson",
+    "player_id": "1631212",
+    "league": "NBA",
+    "date": "2026-10-22",
+    "lines": {
+      "AST": 1.5,
+      "PTS": 12.5,
+      "REB": 4.5
+    },
+    "predicted": {
+      "PTS": 9.6,
+      "AST": 1.1,
+      "REB": 3.9
+    },
+    "p_over": {
+      "PTS": 0.289,
+      "AST": 0.33,
+      "REB": 0.348
+    },
+    "actual": {},
+    "resolved": false,
+    "injury_status": null,
+    "created_at": "2026-10-22T21:17:40.203354+00:00",
+    "model_version": "legacy-unversioned",
+    "prediction_stages": {}
+  },
+  {
+    "player": "Jaylon Tyson",
+    "player_id": "1642281",
+    "league": "NBA",
+    "date": "2026-10-22",
+    "lines": {
+      "AST": 1.5,
+      "PTS": 9.5,
+      "REB": 4.5
+    },
+    "predicted": {
+      "PTS": 13.5,
+      "AST": 2.3,
+      "REB": 5.2
+    },
+    "p_over": {
+      "PTS": 0.839,
+      "AST": 0.835,
+      "REB": 0.644
+    },
+    "actual": {},
+    "resolved": false,
+    "injury_status": null,
+    "created_at": "2026-10-22T21:17:42.966928+00:00",
+    "model_version": "legacy-unversioned",
+    "prediction_stages": {}
+  },
+  {
+    "player": "Jarrett Allen",
+    "player_id": "1628386",
+    "league": "NBA",
+    "date": "2026-10-22",
+    "lines": {
+      "AST": 1.5,
+      "PTS": 13.5,
+      "REB": 8.5
+    },
+    "predicted": {
+      "PTS": 16.9,
+      "AST": 0.6,
+      "REB": 8.6
+    },
+    "p_over": {
+      "PTS": 0.787,
+      "AST": 0.121,
+      "REB": 0.521
+    },
+    "actual": {},
+    "resolved": false,
+    "injury_status": null,
+    "created_at": "2026-10-22T21:17:45.671578+00:00",
+    "model_version": "legacy-unversioned",
+    "prediction_stages": {}
+  },
+  {
+    "player": "Anfernee Simons",
+    "player_id": "1629014",
+    "league": "NBA",
+    "date": "2026-10-22",
+    "lines": {
+      "PTS": 9.5
+    },
+    "predicted": {
+      "PTS": 13.3
+    },
+    "p_over": {
+      "PTS": 0.814
+    },
+    "actual": {},
+    "resolved": false,
+    "injury_status": null,
+    "created_at": "2026-10-22T22:06:59.740355+00:00",
+    "model_version": "legacy-unversioned",
+    "prediction_stages": {
+      "raw": {
+        "PTS": 13.3,
+        "AST": 0.0,
+        "REB": 1.7
+      },
+      "teammate": {
+        "PTS": 13.3,
+        "AST": 0.0,
+        "REB": 1.7
+      },
+      "return": {
+        "PTS": 13.3,
+        "AST": 0.0,
+        "REB": 1.7
+      },
+      "questionable": {
+        "PTS": 13.3,
+        "AST": 0.0,
+        "REB": 1.7
+      },
+      "final": {
+        "PTS": 13.3,
+        "AST": 0.0,
+        "REB": 1.7
+      }
+    }
+  },
+  {
+    "player": "Sam Merrill",
+    "player_id": "1630241",
+    "league": "NBA",
+    "date": "2026-10-22",
+    "lines": {
+      "PTS": 8.5
+    },
+    "predicted": {
+      "PTS": 13.4
+    },
+    "p_over": {
+      "PTS": 0.885
+    },
+    "actual": {},
+    "resolved": false,
+    "injury_status": null,
+    "created_at": "2026-10-22T21:17:51.198196+00:00",
+    "model_version": "legacy-unversioned",
+    "prediction_stages": {}
+  },
+  {
+    "player": "Kentavious Caldwell-Pope",
+    "player_id": "203484",
+    "league": "NBA",
+    "date": "2026-10-22",
+    "lines": {
+      "PTS": 5.5
+    },
+    "predicted": {
+      "PTS": 5.7
+    },
+    "p_over": {
+      "PTS": 0.527
+    },
+    "actual": {},
+    "resolved": false,
+    "injury_status": null,
+    "created_at": "2026-10-22T22:07:02.755338+00:00",
+    "model_version": "legacy-unversioned",
+    "prediction_stages": {
+      "raw": {
+        "PTS": 5.7,
+        "AST": 1.1,
+        "REB": 2.0
+      },
+      "teammate": {
+        "PTS": 5.7,
+        "AST": 1.1,
+        "REB": 2.0
+      },
+      "return": {
+        "PTS": 5.7,
+        "AST": 1.1,
+        "REB": 2.0
+      },
+      "questionable": {
+        "PTS": 5.7,
+        "AST": 1.1,
+        "REB": 2.0
+      },
+      "final": {
+        "PTS": 5.7,
+        "AST": 1.1,
+        "REB": 2.0
+      }
+    }
+  },
+  {
+    "player": "Shai Gilgeous-Alexander",
+    "player_id": "1628983",
+    "league": "NBA",
+    "date": "2026-10-22",
+    "lines": {
+      "AST": 6.5,
+      "PTS": 30.5,
+      "REB": 3.5
+    },
+    "predicted": {
+      "PTS": 31.0,
+      "AST": 4.0,
+      "REB": 6.1
+    },
+    "p_over": {
+      "PTS": 0.547,
+      "AST": 0.05,
+      "REB": 0.976
+    },
+    "actual": {},
+    "resolved": false,
+    "injury_status": null,
+    "created_at": "2026-10-22T22:06:45.540366+00:00",
+    "model_version": "legacy-unversioned",
+    "prediction_stages": {
+      "raw": {
+        "PTS": 31.0,
+        "AST": 4.0,
+        "REB": 6.1
+      },
+      "teammate": {
+        "PTS": 31.0,
+        "AST": 4.0,
+        "REB": 6.1
+      },
+      "return": {
+        "PTS": 31.0,
+        "AST": 4.0,
+        "REB": 6.1
+      },
+      "questionable": {
+        "PTS": 31.0,
+        "AST": 4.0,
+        "REB": 6.1
+      },
+      "final": {
+        "PTS": 31.0,
+        "AST": 4.0,
+        "REB": 6.1
+      }
+    }
+  },
+  {
+    "player": "Jamal Murray",
+    "player_id": "1627750",
+    "league": "NBA",
+    "date": "2026-10-22",
+    "lines": {
+      "AST": 5.5,
+      "PTS": 21.5,
+      "REB": 4.5
+    },
+    "predicted": {
+      "PTS": 23.1,
+      "AST": 8.8,
+      "REB": 4.6
+    },
+    "p_over": {
+      "PTS": 0.606,
+      "AST": 0.951,
+      "REB": 0.529
+    },
+    "actual": {},
+    "resolved": false,
+    "injury_status": null,
+    "created_at": "2026-10-22T21:17:59.865747+00:00",
+    "model_version": "legacy-unversioned",
+    "prediction_stages": {}
+  },
+  {
+    "player": "Jalen Williams",
+    "player_id": "1631114",
+    "league": "NBA",
+    "date": "2026-10-22",
+    "lines": {
+      "AST": 4.5,
+      "PTS": 18.5,
+      "REB": 4.5
+    },
+    "predicted": {
+      "PTS": 12.9,
+      "AST": 2.1,
+      "REB": 7.5
+    },
+    "p_over": {
+      "PTS": 0.042,
+      "AST": 0.05,
+      "REB": 0.986
+    },
+    "actual": {},
+    "resolved": false,
+    "injury_status": null,
+    "created_at": "2026-10-22T22:07:08.298883+00:00",
+    "model_version": "legacy-unversioned",
+    "prediction_stages": {
+      "raw": {
+        "PTS": 12.9,
+        "AST": 2.1,
+        "REB": 7.5
+      },
+      "teammate": {
+        "PTS": 12.9,
+        "AST": 2.1,
+        "REB": 7.5
+      },
+      "return": {
+        "PTS": 12.9,
+        "AST": 2.1,
+        "REB": 7.5
+      },
+      "questionable": {
+        "PTS": 12.9,
+        "AST": 2.1,
+        "REB": 7.5
+      },
+      "final": {
+        "PTS": 12.9,
+        "AST": 2.1,
+        "REB": 7.5
+      }
+    }
+  },
+  {
+    "player": "Ajay Mitchell",
+    "player_id": "1642349",
+    "league": "NBA",
+    "date": "2026-10-22",
+    "lines": {
+      "AST": 3.5,
+      "PTS": 10.5,
+      "REB": 2.5
+    },
+    "predicted": {
+      "PTS": 4.5,
+      "AST": 4.2,
+      "REB": 3.2
+    },
+    "p_over": {
+      "PTS": 0.024,
+      "AST": 0.72,
+      "REB": 0.717
+    },
+    "actual": {},
+    "resolved": false,
+    "injury_status": null,
+    "created_at": "2026-10-22T22:07:11.044777+00:00",
+    "model_version": "legacy-unversioned",
+    "prediction_stages": {
+      "raw": {
+        "PTS": 4.5,
+        "AST": 4.2,
+        "REB": 3.2
+      },
+      "teammate": {
+        "PTS": 4.5,
+        "AST": 4.2,
+        "REB": 3.2
+      },
+      "return": {
+        "PTS": 4.5,
+        "AST": 4.2,
+        "REB": 3.2
+      },
+      "questionable": {
+        "PTS": 4.5,
+        "AST": 4.2,
+        "REB": 3.2
+      },
+      "final": {
+        "PTS": 4.5,
+        "AST": 4.2,
+        "REB": 3.2
+      }
+    }
+  },
+  {
+    "player": "Isaiah Hartenstein",
+    "player_id": "1628392",
+    "league": "NBA",
+    "date": "2026-10-22",
+    "lines": {
+      "AST": 2.5,
+      "PTS": 8.5,
+      "REB": 7.5
+    },
+    "predicted": {
+      "PTS": 4.7,
+      "AST": 3.5,
+      "REB": 3.5
+    },
+    "p_over": {
+      "PTS": 0.137,
+      "AST": 0.734,
+      "REB": 0.044
+    },
+    "actual": {},
+    "resolved": false,
+    "injury_status": null,
+    "created_at": "2026-10-22T22:07:13.683147+00:00",
+    "model_version": "legacy-unversioned",
+    "prediction_stages": {
+      "raw": {
+        "PTS": 4.7,
+        "AST": 3.5,
+        "REB": 3.5
+      },
+      "teammate": {
+        "PTS": 4.7,
+        "AST": 3.5,
+        "REB": 3.5
+      },
+      "return": {
+        "PTS": 4.7,
+        "AST": 3.5,
+        "REB": 3.5
+      },
+      "questionable": {
+        "PTS": 4.7,
+        "AST": 3.5,
+        "REB": 3.5
+      },
+      "final": {
+        "PTS": 4.7,
+        "AST": 3.5,
+        "REB": 3.5
+      }
+    }
+  },
+  {
+    "player": "DeMar DeRozan",
+    "player_id": "201942",
+    "league": "NBA",
+    "date": "2026-10-22",
+    "lines": {
+      "AST": 2.5,
+      "PTS": 12.5,
+      "REB": 2.5
+    },
+    "predicted": {
+      "PTS": 16.5,
+      "AST": 2.9,
+      "REB": 1.7
+    },
+    "p_over": {
+      "PTS": 0.772,
+      "AST": 0.606,
+      "REB": 0.223
+    },
+    "actual": {},
+    "resolved": false,
+    "injury_status": null,
+    "created_at": "2026-10-22T21:18:11.406464+00:00",
+    "model_version": "legacy-unversioned",
+    "prediction_stages": {}
+  },
+  {
+    "player": "Aaron Gordon",
+    "player_id": "203932",
+    "league": "NBA",
+    "date": "2026-10-22",
+    "lines": {
+      "AST": 2.5,
+      "PTS": 14.5,
+      "REB": 5.5
+    },
+    "predicted": {
+      "PTS": 14.1,
+      "AST": 3.4,
+      "REB": 5.9
+    },
+    "p_over": {
+      "PTS": 0.47,
+      "AST": 0.761,
+      "REB": 0.607
+    },
+    "actual": {},
+    "resolved": false,
+    "injury_status": null,
+    "created_at": "2026-10-22T21:18:14.129975+00:00",
+    "model_version": "legacy-unversioned",
+    "prediction_stages": {}
+  },
+  {
+    "player": "Cameron Johnson",
+    "player_id": "1629661",
+    "league": "NBA",
+    "date": "2026-10-22",
+    "lines": {
+      "AST": 2.5,
+      "PTS": 12.5,
+      "REB": 3.5
+    },
+    "predicted": {
+      "PTS": 15.5,
+      "AST": 3.1,
+      "REB": 4.3
+    },
+    "p_over": {
+      "PTS": 0.802,
+      "AST": 0.75,
+      "REB": 0.746
+    },
+    "actual": {},
+    "resolved": false,
+    "injury_status": null,
+    "created_at": "2026-10-22T21:18:16.862076+00:00",
+    "model_version": "legacy-unversioned",
+    "prediction_stages": {}
+  },
+  {
+    "player": "Cason Wallace",
+    "player_id": "1641717",
+    "league": "NBA",
+    "date": "2026-10-22",
+    "lines": {
+      "AST": 2.5,
+      "PTS": 8.5,
+      "REB": 3.5
+    },
+    "predicted": {
+      "PTS": 7.8,
+      "AST": 1.9,
+      "REB": 2.2
+    },
+    "p_over": {
+      "PTS": 0.42,
+      "AST": 0.311,
+      "REB": 0.129
+    },
+    "actual": {},
+    "resolved": false,
+    "injury_status": null,
+    "created_at": "2026-10-22T22:07:16.495224+00:00",
+    "model_version": "legacy-unversioned",
+    "prediction_stages": {
+      "raw": {
+        "PTS": 7.8,
+        "AST": 1.9,
+        "REB": 2.2
+      },
+      "teammate": {
+        "PTS": 7.8,
+        "AST": 1.9,
+        "REB": 2.2
+      },
+      "return": {
+        "PTS": 7.8,
+        "AST": 1.9,
+        "REB": 2.2
+      },
+      "questionable": {
+        "PTS": 7.8,
+        "AST": 1.9,
+        "REB": 2.2
+      },
+      "final": {
+        "PTS": 7.8,
+        "AST": 1.9,
+        "REB": 2.2
+      }
+    }
+  },
+  {
+    "player": "Christian Braun",
+    "player_id": "1631128",
+    "league": "NBA",
+    "date": "2026-10-22",
+    "lines": {
+      "AST": 1.5,
+      "PTS": 10.5,
+      "REB": 4.5
+    },
+    "predicted": {
+      "PTS": 10.7,
+      "AST": 3.3,
+      "REB": 4.3
+    },
+    "p_over": {
+      "PTS": 0.522,
+      "AST": 0.954,
+      "REB": 0.441
+    },
+    "actual": {},
+    "resolved": false,
+    "injury_status": null,
+    "created_at": "2026-10-22T21:18:22.492421+00:00",
+    "model_version": "legacy-unversioned",
+    "prediction_stages": {}
+  },
+  {
+    "player": "Chet Holmgren",
+    "player_id": "1631096",
+    "league": "NBA",
+    "date": "2026-10-22",
+    "lines": {
+      "AST": 1.5,
+      "PTS": 14.5,
+      "REB": 8.5
+    },
+    "predicted": {
+      "PTS": 14.4,
+      "AST": 1.5,
+      "REB": 7.2
+    },
+    "p_over": {
+      "PTS": 0.489,
+      "AST": 0.5,
+      "REB": 0.254
+    },
+    "actual": {},
+    "resolved": false,
+    "injury_status": null,
+    "created_at": "2026-10-22T22:07:19.298776+00:00",
+    "model_version": "legacy-unversioned",
+    "prediction_stages": {
+      "raw": {
+        "PTS": 14.4,
+        "AST": 1.5,
+        "REB": 7.2
+      },
+      "teammate": {
+        "PTS": 14.4,
+        "AST": 1.5,
+        "REB": 7.2
+      },
+      "return": {
+        "PTS": 14.4,
+        "AST": 1.5,
+        "REB": 7.2
+      },
+      "questionable": {
+        "PTS": 14.4,
+        "AST": 1.5,
+        "REB": 7.2
+      },
+      "final": {
+        "PTS": 14.4,
+        "AST": 1.5,
+        "REB": 7.2
+      }
+    }
+  },
+  {
+    "player": "Jared McCain",
+    "player_id": "1642272",
+    "league": "NBA",
+    "date": "2026-10-22",
+    "lines": {
+      "PTS": 10.5
+    },
+    "predicted": {
+      "PTS": 10.7
+    },
+    "p_over": {
+      "PTS": 0.521
+    },
+    "actual": {},
+    "resolved": false,
+    "injury_status": null,
+    "created_at": "2026-10-22T22:07:22.014527+00:00",
+    "model_version": "legacy-unversioned",
+    "prediction_stages": {
+      "raw": {
+        "PTS": 10.7,
+        "AST": 1.1,
+        "REB": 1.5
+      },
+      "teammate": {
+        "PTS": 10.7,
+        "AST": 1.1,
+        "REB": 1.5
+      },
+      "return": {
+        "PTS": 10.7,
+        "AST": 1.1,
+        "REB": 1.5
+      },
+      "questionable": {
+        "PTS": 10.7,
+        "AST": 1.1,
+        "REB": 1.5
+      },
+      "final": {
+        "PTS": 10.7,
+        "AST": 1.1,
+        "REB": 1.5
+      }
+    }
+  },
+  {
+    "player": "Marvin Bagley III",
+    "player_id": "1628963",
+    "league": "NBA",
+    "date": "2026-10-22",
+    "lines": {
+      "PTS": 5.5,
+      "REB": 3.5
+    },
+    "predicted": {
+      "PTS": 12.0,
+      "REB": 7.0
+    },
+    "p_over": {
+      "PTS": 0.972,
+      "REB": 0.97
+    },
+    "actual": {},
+    "resolved": false,
+    "injury_status": null,
+    "created_at": "2026-10-22T21:18:31.049888+00:00",
+    "model_version": "legacy-unversioned",
+    "prediction_stages": {}
+  },
+  {
+    "player": "Jalen Brunson",
+    "player_id": "1628973",
+    "league": "NBA",
+    "date": "2026-10-23",
+    "lines": {
+      "AST": 6.5,
+      "PTS": 26.5,
+      "REB": 2.5
+    },
+    "predicted": {
+      "PTS": 24.4,
+      "AST": 3.5,
+      "REB": 2.2
+    },
+    "p_over": {
+      "PTS": 0.334,
+      "AST": 0.056,
+      "REB": 0.397
+    },
+    "actual": {},
+    "resolved": false,
+    "injury_status": null,
+    "created_at": "2026-10-22T22:07:24.781977+00:00",
+    "model_version": "legacy-unversioned",
+    "prediction_stages": {
+      "raw": {
+        "PTS": 24.4,
+        "AST": 3.5,
+        "REB": 2.2
+      },
+      "teammate": {
+        "PTS": 24.4,
+        "AST": 3.5,
+        "REB": 2.2
+      },
+      "return": {
+        "PTS": 24.4,
+        "AST": 3.5,
+        "REB": 2.2
+      },
+      "questionable": {
+        "PTS": 24.4,
+        "AST": 3.5,
+        "REB": 2.2
+      },
+      "final": {
+        "PTS": 24.4,
+        "AST": 3.5,
+        "REB": 2.2
+      }
+    }
+  },
+  {
+    "player": "Jayson Tatum",
+    "player_id": "1628369",
+    "league": "NBA",
+    "date": "2026-10-23",
+    "lines": {
+      "AST": 6.5,
+      "PTS": 25.5,
+      "REB": 8.5
+    },
+    "predicted": {
+      "PTS": 14.8,
+      "AST": 10.1,
+      "REB": 4.6
+    },
+    "p_over": {
+      "PTS": 0.0,
+      "AST": 0.964,
+      "REB": 0.06
+    },
+    "actual": {},
+    "resolved": false,
+    "injury_status": null,
+    "created_at": "2026-10-22T22:07:27.295021+00:00",
+    "model_version": "legacy-unversioned",
+    "prediction_stages": {
+      "raw": {
+        "PTS": 14.8,
+        "AST": 10.1,
+        "REB": 4.6
+      },
+      "teammate": {
+        "PTS": 14.8,
+        "AST": 10.1,
+        "REB": 4.6
+      },
+      "return": {
+        "PTS": 14.8,
+        "AST": 10.1,
+        "REB": 4.6
+      },
+      "questionable": {
+        "PTS": 14.8,
+        "AST": 10.1,
+        "REB": 4.6
+      },
+      "final": {
+        "PTS": 14.8,
+        "AST": 10.1,
+        "REB": 4.6
+      }
+    }
+  },
+  {
+    "player": "Derrick White",
+    "player_id": "1628401",
+    "league": "NBA",
+    "date": "2026-10-23",
+    "lines": {
+      "AST": 4.5,
+      "PTS": 15.5,
+      "REB": 3.5
+    },
+    "predicted": {
+      "PTS": 15.0,
+      "AST": 5.5,
+      "REB": 1.0
+    },
+    "p_over": {
+      "PTS": 0.454,
+      "AST": 0.771,
+      "REB": 0.016
+    },
+    "actual": {},
+    "resolved": false,
+    "injury_status": null,
+    "created_at": "2026-10-22T22:07:30.004455+00:00",
+    "model_version": "legacy-unversioned",
+    "prediction_stages": {
+      "raw": {
+        "PTS": 15.0,
+        "AST": 5.5,
+        "REB": 1.0
+      },
+      "teammate": {
+        "PTS": 15.0,
+        "AST": 5.5,
+        "REB": 1.0
+      },
+      "return": {
+        "PTS": 15.0,
+        "AST": 5.5,
+        "REB": 1.0
+      },
+      "questionable": {
+        "PTS": 15.0,
+        "AST": 5.5,
+        "REB": 1.0
+      },
+      "final": {
+        "PTS": 15.0,
+        "AST": 5.5,
+        "REB": 1.0
+      }
+    }
+  },
+  {
+    "player": "Karl-Anthony Towns",
+    "player_id": "1626157",
+    "league": "NBA",
+    "date": "2026-10-23",
+    "lines": {
+      "AST": 4.5,
+      "PTS": 18.5,
+      "REB": 11.5
+    },
+    "predicted": {
+      "PTS": 19.9,
+      "AST": 1.4,
+      "REB": 12.2
+    },
+    "p_over": {
+      "PTS": 0.621,
+      "AST": 0.003,
+      "REB": 0.619
+    },
+    "actual": {},
+    "resolved": false,
+    "injury_status": null,
+    "created_at": "2026-10-22T22:07:32.988727+00:00",
+    "model_version": "legacy-unversioned",
+    "prediction_stages": {
+      "raw": {
+        "PTS": 19.9,
+        "AST": 1.4,
+        "REB": 12.2
+      },
+      "teammate": {
+        "PTS": 19.9,
+        "AST": 1.4,
+        "REB": 12.2
+      },
+      "return": {
+        "PTS": 19.9,
+        "AST": 1.4,
+        "REB": 12.2
+      },
+      "questionable": {
+        "PTS": 19.9,
+        "AST": 1.4,
+        "REB": 12.2
+      },
+      "final": {
+        "PTS": 19.9,
+        "AST": 1.4,
+        "REB": 12.2
+      }
+    }
+  },
+  {
+    "player": "Josh Hart",
+    "player_id": "1628404",
+    "league": "NBA",
+    "date": "2026-10-23",
+    "lines": {
+      "AST": 3.5,
+      "PTS": 10.5,
+      "REB": 6.5
+    },
+    "predicted": {
+      "PTS": 17.0,
+      "AST": 3.7,
+      "REB": 5.7
+    },
+    "p_over": {
+      "PTS": 0.957,
+      "AST": 0.557,
+      "REB": 0.341
+    },
+    "actual": {},
+    "resolved": false,
+    "injury_status": null,
+    "created_at": "2026-10-22T22:07:38.432052+00:00",
+    "model_version": "legacy-unversioned",
+    "prediction_stages": {
+      "raw": {
+        "PTS": 17.0,
+        "AST": 3.7,
+        "REB": 5.7
+      },
+      "teammate": {
+        "PTS": 17.0,
+        "AST": 3.7,
+        "REB": 5.7
+      },
+      "return": {
+        "PTS": 17.0,
+        "AST": 3.7,
+        "REB": 5.7
+      },
+      "questionable": {
+        "PTS": 17.0,
+        "AST": 3.7,
+        "REB": 5.7
+      },
+      "final": {
+        "PTS": 17.0,
+        "AST": 3.7,
+        "REB": 5.7
+      }
+    }
+  },
+  {
+    "player": "Payton Pritchard",
+    "player_id": "1630202",
+    "league": "NBA",
+    "date": "2026-10-23",
+    "lines": {
+      "AST": 4.5,
+      "PTS": 15.5,
+      "REB": 3.5
+    },
+    "predicted": {
+      "PTS": 12.4,
+      "AST": 1.3,
+      "REB": 3.7
+    },
+    "p_over": {
+      "PTS": 0.274,
+      "AST": 0.014,
+      "REB": 0.569
+    },
+    "actual": {},
+    "resolved": false,
+    "injury_status": null,
+    "created_at": "2026-10-22T22:07:35.704186+00:00",
+    "model_version": "legacy-unversioned",
+    "prediction_stages": {
+      "raw": {
+        "PTS": 12.4,
+        "AST": 1.3,
+        "REB": 3.7
+      },
+      "teammate": {
+        "PTS": 12.4,
+        "AST": 1.3,
+        "REB": 3.7
+      },
+      "return": {
+        "PTS": 12.4,
+        "AST": 1.3,
+        "REB": 3.7
+      },
+      "questionable": {
+        "PTS": 12.4,
+        "AST": 1.3,
+        "REB": 3.7
+      },
+      "final": {
+        "PTS": 12.4,
+        "AST": 1.3,
+        "REB": 3.7
+      }
+    }
+  },
+  {
+    "player": "Paul George",
+    "player_id": "202331",
+    "league": "NBA",
+    "date": "2026-10-23",
+    "lines": {
+      "AST": 3.5,
+      "PTS": 18.5,
+      "REB": 4.5
+    },
+    "predicted": {
+      "PTS": 21.6,
+      "AST": 3.3,
+      "REB": 5.5
+    },
+    "p_over": {
+      "PTS": 0.736,
+      "AST": 0.412,
+      "REB": 0.772
+    },
+    "actual": {},
+    "resolved": false,
+    "injury_status": null,
+    "created_at": "2026-10-22T22:07:41.254790+00:00",
+    "model_version": "legacy-unversioned",
+    "prediction_stages": {
+      "raw": {
+        "PTS": 21.6,
+        "AST": 3.3,
+        "REB": 5.5
+      },
+      "teammate": {
+        "PTS": 21.6,
+        "AST": 3.3,
+        "REB": 5.5
+      },
+      "return": {
+        "PTS": 21.6,
+        "AST": 3.3,
+        "REB": 5.5
+      },
+      "questionable": {
+        "PTS": 21.6,
+        "AST": 3.3,
+        "REB": 5.5
+      },
+      "final": {
+        "PTS": 21.6,
+        "AST": 3.3,
+        "REB": 5.5
+      }
+    }
+  },
+  {
+    "player": "Mikal Bridges",
+    "player_id": "1628969",
+    "league": "NBA",
+    "date": "2026-10-23",
+    "lines": {
+      "AST": 2.5,
+      "PTS": 11.5,
+      "REB": 3.5
+    },
+    "predicted": {
+      "PTS": 3.4,
+      "AST": 0.6,
+      "REB": 2.4
+    },
+    "p_over": {
+      "PTS": 0.016,
+      "AST": 0.067,
+      "REB": 0.206
+    },
+    "actual": {},
+    "resolved": false,
+    "injury_status": null,
+    "created_at": "2026-10-22T22:07:44.083555+00:00",
+    "model_version": "legacy-unversioned",
+    "prediction_stages": {
+      "raw": {
+        "PTS": 3.4,
+        "AST": 0.6,
+        "REB": 2.4
+      },
+      "teammate": {
+        "PTS": 3.4,
+        "AST": 0.6,
+        "REB": 2.4
+      },
+      "return": {
+        "PTS": 3.4,
+        "AST": 0.6,
+        "REB": 2.4
+      },
+      "questionable": {
+        "PTS": 3.4,
+        "AST": 0.6,
+        "REB": 2.4
+      },
+      "final": {
+        "PTS": 3.4,
+        "AST": 0.6,
+        "REB": 2.4
+      }
+    }
+  },
+  {
+    "player": "OG Anunoby",
+    "player_id": "1628384",
+    "league": "NBA",
+    "date": "2026-10-23",
+    "lines": {
+      "AST": 1.5,
+      "PTS": 17.5,
+      "REB": 4.5
+    },
+    "predicted": {
+      "PTS": 10.8,
+      "AST": 0.0,
+      "REB": 5.4
+    },
+    "p_over": {
+      "PTS": 0.063,
+      "AST": 0.059,
+      "REB": 0.698
+    },
+    "actual": {},
+    "resolved": false,
+    "injury_status": null,
+    "created_at": "2026-10-22T22:07:46.921414+00:00",
+    "model_version": "legacy-unversioned",
+    "prediction_stages": {
+      "raw": {
+        "PTS": 10.8,
+        "AST": 0.0,
+        "REB": 5.4
+      },
+      "teammate": {
+        "PTS": 10.8,
+        "AST": 0.0,
+        "REB": 5.4
+      },
+      "return": {
+        "PTS": 10.8,
+        "AST": 0.0,
+        "REB": 5.4
+      },
+      "questionable": {
+        "PTS": 10.8,
+        "AST": 0.0,
+        "REB": 5.4
+      },
+      "final": {
+        "PTS": 10.8,
+        "AST": 0.0,
+        "REB": 5.4
+      }
+    }
+  },
+  {
+    "player": "Neemias Queta",
+    "player_id": "1629674",
+    "league": "NBA",
+    "date": "2026-10-23",
+    "lines": {
+      "PTS": 7.5,
+      "REB": 6.5
+    },
+    "predicted": {
+      "PTS": 3.5,
+      "REB": 4.6
+    },
+    "p_over": {
+      "PTS": 0.091,
+      "REB": 0.212
+    },
+    "actual": {},
+    "resolved": false,
+    "injury_status": null,
+    "created_at": "2026-10-22T22:07:49.945962+00:00",
+    "model_version": "legacy-unversioned",
+    "prediction_stages": {
+      "raw": {
+        "PTS": 3.5,
+        "AST": 2.0,
+        "REB": 4.6
+      },
+      "teammate": {
+        "PTS": 3.5,
+        "AST": 2.0,
+        "REB": 4.6
+      },
+      "return": {
+        "PTS": 3.5,
+        "AST": 2.0,
+        "REB": 4.6
+      },
+      "questionable": {
+        "PTS": 3.5,
+        "AST": 2.0,
+        "REB": 4.6
+      },
+      "final": {
+        "PTS": 3.5,
+        "AST": 2.0,
+        "REB": 4.6
+      }
+    }
+  },
+  {
+    "player": "Landry Shamet",
+    "player_id": "1629013",
+    "league": "NBA",
+    "date": "2026-10-23",
+    "lines": {
+      "PTS": 7.5
+    },
+    "predicted": {
+      "PTS": 5.5
+    },
+    "p_over": {
+      "PTS": 0.302
+    },
+    "actual": {},
+    "resolved": false,
+    "injury_status": null,
+    "created_at": "2026-10-22T22:07:52.703222+00:00",
+    "model_version": "legacy-unversioned",
+    "prediction_stages": {
+      "raw": {
+        "PTS": 5.5,
+        "AST": 1.7,
+        "REB": 1.3
+      },
+      "teammate": {
+        "PTS": 5.5,
+        "AST": 1.7,
+        "REB": 1.3
+      },
+      "return": {
+        "PTS": 5.5,
+        "AST": 1.7,
+        "REB": 1.3
+      },
+      "questionable": {
+        "PTS": 5.5,
+        "AST": 1.7,
+        "REB": 1.3
+      },
+      "final": {
+        "PTS": 5.5,
+        "AST": 1.7,
+        "REB": 1.3
+      }
+    }
+  },
+  {
+    "player": "Andre Drummond",
+    "player_id": "203083",
+    "league": "NBA",
+    "date": "2026-10-23",
+    "lines": {
+      "PTS": 6.5,
+      "REB": 6.5
+    },
+    "predicted": {
+      "PTS": 11.2,
+      "REB": 12.0
+    },
+    "p_over": {
+      "PTS": 0.96,
+      "REB": 0.968
+    },
+    "actual": {},
+    "resolved": false,
+    "injury_status": null,
+    "created_at": "2026-10-22T22:07:55.408806+00:00",
+    "model_version": "legacy-unversioned",
+    "prediction_stages": {
+      "raw": {
+        "PTS": 11.2,
+        "AST": 1.9,
+        "REB": 12.0
+      },
+      "teammate": {
+        "PTS": 11.2,
+        "AST": 1.9,
+        "REB": 12.0
+      },
+      "return": {
+        "PTS": 11.2,
+        "AST": 1.9,
+        "REB": 12.0
+      },
+      "questionable": {
+        "PTS": 11.2,
+        "AST": 1.9,
+        "REB": 12.0
+      },
+      "final": {
+        "PTS": 11.2,
+        "AST": 1.9,
+        "REB": 12.0
+      }
+    }
+  },
+  {
+    "player": "Mitchell Robinson",
+    "player_id": "1629011",
+    "league": "NBA",
+    "date": "2026-10-23",
+    "lines": {
+      "PTS": 5.5,
+      "REB": 6.5
+    },
+    "predicted": {
+      "PTS": 5.0,
+      "REB": 3.7
+    },
+    "p_over": {
+      "PTS": 0.422,
+      "REB": 0.109
+    },
+    "actual": {},
+    "resolved": false,
+    "injury_status": null,
+    "created_at": "2026-10-22T22:07:58.080097+00:00",
+    "model_version": "legacy-unversioned",
+    "prediction_stages": {
+      "raw": {
+        "PTS": 5.0,
+        "AST": 0.9,
+        "REB": 3.7
+      },
+      "teammate": {
+        "PTS": 5.0,
+        "AST": 0.9,
+        "REB": 3.7
+      },
+      "return": {
+        "PTS": 5.0,
+        "AST": 0.9,
+        "REB": 3.7
+      },
+      "questionable": {
+        "PTS": 5.0,
+        "AST": 0.9,
+        "REB": 3.7
+      },
+      "final": {
+        "PTS": 5.0,
+        "AST": 0.9,
+        "REB": 3.7
+      }
+    }
+  },
+  {
+    "player": "LaMelo Ball",
+    "player_id": "1630163",
+    "league": "NBA",
+    "date": "2026-10-23",
+    "lines": {
+      "AST": 7.5,
+      "PTS": 19.5,
+      "REB": 4.5
+    },
+    "predicted": {
+      "PTS": 19.9,
+      "AST": 6.8,
+      "REB": 2.4
+    },
+    "p_over": {
+      "PTS": 0.537,
+      "AST": 0.332,
+      "REB": 0.074
+    },
+    "actual": {},
+    "resolved": false,
+    "injury_status": null,
+    "created_at": "2026-10-22T22:08:00.845110+00:00",
+    "model_version": "legacy-unversioned",
+    "prediction_stages": {
+      "raw": {
+        "PTS": 19.9,
+        "AST": 6.8,
+        "REB": 2.4
+      },
+      "teammate": {
+        "PTS": 19.9,
+        "AST": 6.8,
+        "REB": 2.4
+      },
+      "return": {
+        "PTS": 19.9,
+        "AST": 6.8,
+        "REB": 2.4
+      },
+      "questionable": {
+        "PTS": 19.9,
+        "AST": 6.8,
+        "REB": 2.4
+      },
+      "final": {
+        "PTS": 19.9,
+        "AST": 6.8,
+        "REB": 2.4
+      }
+    }
+  },
+  {
+    "player": "Paolo Banchero",
+    "player_id": "1631094",
+    "league": "NBA",
+    "date": "2026-10-23",
+    "lines": {
+      "AST": 5.5,
+      "PTS": 21.5,
+      "REB": 8.5
+    },
+    "predicted": {
+      "PTS": 21.1,
+      "AST": 7.2,
+      "REB": 6.8
+    },
+    "p_over": {
+      "PTS": 0.466,
+      "AST": 0.876,
+      "REB": 0.19
+    },
+    "actual": {},
+    "resolved": false,
+    "injury_status": null,
+    "created_at": "2026-10-22T22:08:03.664794+00:00",
+    "model_version": "legacy-unversioned",
+    "prediction_stages": {
+      "raw": {
+        "PTS": 21.1,
+        "AST": 7.2,
+        "REB": 6.8
+      },
+      "teammate": {
+        "PTS": 21.1,
+        "AST": 7.2,
+        "REB": 6.8
+      },
+      "return": {
+        "PTS": 21.1,
+        "AST": 7.2,
+        "REB": 6.8
+      },
+      "questionable": {
+        "PTS": 21.1,
+        "AST": 7.2,
+        "REB": 6.8
+      },
+      "final": {
+        "PTS": 21.1,
+        "AST": 7.2,
+        "REB": 6.8
+      }
+    }
+  },
+  {
+    "player": "Franz Wagner",
+    "player_id": "1630532",
+    "league": "NBA",
+    "date": "2026-10-23",
+    "lines": {
+      "AST": 4.5,
+      "PTS": 21.5,
+      "REB": 5.5
+    },
+    "predicted": {
+      "PTS": 19.4,
+      "AST": 3.2,
+      "REB": 4.2
+    },
+    "p_over": {
+      "PTS": 0.298,
+      "AST": 0.108,
+      "REB": 0.182
+    },
+    "actual": {},
+    "resolved": false,
+    "injury_status": null,
+    "created_at": "2026-10-22T22:08:06.322336+00:00",
+    "model_version": "legacy-unversioned",
+    "prediction_stages": {
+      "raw": {
+        "PTS": 19.4,
+        "AST": 3.2,
+        "REB": 4.2
+      },
+      "teammate": {
+        "PTS": 19.4,
+        "AST": 3.2,
+        "REB": 4.2
+      },
+      "return": {
+        "PTS": 19.4,
+        "AST": 3.2,
+        "REB": 4.2
+      },
+      "questionable": {
+        "PTS": 19.4,
+        "AST": 3.2,
+        "REB": 4.2
+      },
+      "final": {
+        "PTS": 19.4,
+        "AST": 3.2,
+        "REB": 4.2
+      }
+    }
+  },
+  {
+    "player": "Jalen Suggs",
+    "player_id": "1630591",
+    "league": "NBA",
+    "date": "2026-10-23",
+    "lines": {
+      "AST": 4.5,
+      "PTS": 13.5,
+      "REB": 3.5
+    },
+    "predicted": {
+      "PTS": 6.5,
+      "AST": 5.4,
+      "REB": 2.9
+    },
+    "p_over": {
+      "PTS": 0.023,
+      "AST": 0.713,
+      "REB": 0.317
+    },
+    "actual": {},
+    "resolved": false,
+    "injury_status": null,
+    "created_at": "2026-10-22T22:08:09.331420+00:00",
+    "model_version": "legacy-unversioned",
+    "prediction_stages": {
+      "raw": {
+        "PTS": 6.5,
+        "AST": 5.4,
+        "REB": 2.9
+      },
+      "teammate": {
+        "PTS": 6.5,
+        "AST": 5.4,
+        "REB": 2.9
+      },
+      "return": {
+        "PTS": 6.5,
+        "AST": 5.4,
+        "REB": 2.9
+      },
+      "questionable": {
+        "PTS": 6.5,
+        "AST": 5.4,
+        "REB": 2.9
+      },
+      "final": {
+        "PTS": 6.5,
+        "AST": 5.4,
+        "REB": 2.9
+      }
+    }
+  },
+  {
+    "player": "Anthony Edwards",
+    "player_id": "1630162",
+    "league": "NBA",
+    "date": "2026-10-23",
+    "lines": {
+      "AST": 3.5,
+      "PTS": 29.5,
+      "REB": 5.5
+    },
+    "predicted": {
+      "PTS": 37.6,
+      "AST": 3.1,
+      "REB": 6.4
+    },
+    "p_over": {
+      "PTS": 0.905,
+      "AST": 0.34,
+      "REB": 0.728
+    },
+    "actual": {},
+    "resolved": false,
+    "injury_status": null,
+    "created_at": "2026-10-22T22:08:12.435247+00:00",
+    "model_version": "legacy-unversioned",
+    "prediction_stages": {
+      "raw": {
+        "PTS": 37.6,
+        "AST": 3.1,
+        "REB": 6.4
+      },
+      "teammate": {
+        "PTS": 37.6,
+        "AST": 3.1,
+        "REB": 6.4
+      },
+      "return": {
+        "PTS": 37.6,
+        "AST": 3.1,
+        "REB": 6.4
+      },
+      "questionable": {
+        "PTS": 37.6,
+        "AST": 3.1,
+        "REB": 6.4
+      },
+      "final": {
+        "PTS": 37.6,
+        "AST": 3.1,
+        "REB": 6.4
+      }
+    }
+  },
+  {
+    "player": "Desmond Bane",
+    "player_id": "1630217",
+    "league": "NBA",
+    "date": "2026-10-23",
+    "lines": {
+      "AST": 3.5,
+      "PTS": 17.5,
+      "REB": 4.5
+    },
+    "predicted": {
+      "PTS": 15.6,
+      "AST": 1.7,
+      "REB": 3.0
+    },
+    "p_over": {
+      "PTS": 0.345,
+      "AST": 0.062,
+      "REB": 0.109
+    },
+    "actual": {},
+    "resolved": false,
+    "injury_status": null,
+    "created_at": "2026-10-22T22:08:15.181981+00:00",
+    "model_version": "legacy-unversioned",
+    "prediction_stages": {
+      "raw": {
+        "PTS": 15.6,
+        "AST": 1.7,
+        "REB": 3.0
+      },
+      "teammate": {
+        "PTS": 15.6,
+        "AST": 1.7,
+        "REB": 3.0
+      },
+      "return": {
+        "PTS": 15.6,
+        "AST": 1.7,
+        "REB": 3.0
+      },
+      "questionable": {
+        "PTS": 15.6,
+        "AST": 1.7,
+        "REB": 3.0
+      },
+      "final": {
+        "PTS": 15.6,
+        "AST": 1.7,
+        "REB": 3.0
+      }
+    }
+  },
+  {
+    "player": "Jaden McDaniels",
+    "player_id": "1630183",
+    "league": "NBA",
+    "date": "2026-10-23",
+    "lines": {
+      "AST": 2.5,
+      "PTS": 15.5,
+      "REB": 5.5
+    },
+    "predicted": {
+      "PTS": 13.0,
+      "AST": 1.1,
+      "REB": 4.5
+    },
+    "p_over": {
+      "PTS": 0.271,
+      "AST": 0.062,
+      "REB": 0.202
+    },
+    "actual": {},
+    "resolved": false,
+    "injury_status": null,
+    "created_at": "2026-10-22T22:08:17.910398+00:00",
+    "model_version": "legacy-unversioned",
+    "prediction_stages": {
+      "raw": {
+        "PTS": 13.0,
+        "AST": 1.1,
+        "REB": 4.5
+      },
+      "teammate": {
+        "PTS": 13.0,
+        "AST": 1.1,
+        "REB": 4.5
+      },
+      "return": {
+        "PTS": 13.0,
+        "AST": 1.1,
+        "REB": 4.5
+      },
+      "questionable": {
+        "PTS": 13.0,
+        "AST": 1.1,
+        "REB": 4.5
+      },
+      "final": {
+        "PTS": 13.0,
+        "AST": 1.1,
+        "REB": 4.5
+      }
+    }
+  },
+  {
+    "player": "Jonathan Kuminga",
+    "player_id": "1630228",
+    "league": "NBA",
+    "date": "2026-10-23",
+    "lines": {
+      "AST": 2.5,
+      "PTS": 12.5,
+      "REB": 5.5
+    },
+    "predicted": {
+      "PTS": 11.9,
+      "AST": 2.1,
+      "REB": 0.8
+    },
+    "p_over": {
+      "PTS": 0.445,
+      "AST": 0.289,
+      "REB": 0.001
+    },
+    "actual": {},
+    "resolved": false,
+    "injury_status": null,
+    "created_at": "2026-10-22T22:08:20.741918+00:00",
+    "model_version": "legacy-unversioned",
+    "prediction_stages": {
+      "raw": {
+        "PTS": 11.9,
+        "AST": 2.1,
+        "REB": 0.8
+      },
+      "teammate": {
+        "PTS": 11.9,
+        "AST": 2.1,
+        "REB": 0.8
+      },
+      "return": {
+        "PTS": 11.9,
+        "AST": 2.1,
+        "REB": 0.8
+      },
+      "questionable": {
+        "PTS": 11.9,
+        "AST": 2.1,
+        "REB": 0.8
+      },
+      "final": {
+        "PTS": 11.9,
+        "AST": 2.1,
+        "REB": 0.8
+      }
+    }
+  },
+  {
+    "player": "Wendell Carter Jr.",
+    "player_id": "1628976",
+    "league": "NBA",
+    "date": "2026-10-23",
+    "lines": {
+      "PTS": 10.5,
+      "REB": 7.5
+    },
+    "predicted": {
+      "PTS": 13.4,
+      "REB": 6.8
+    },
+    "p_over": {
+      "PTS": 0.807,
+      "REB": 0.33
+    },
+    "actual": {},
+    "resolved": false,
+    "injury_status": null,
+    "created_at": "2026-10-22T22:08:23.928459+00:00",
+    "model_version": "legacy-unversioned",
+    "prediction_stages": {
+      "raw": {
+        "PTS": 13.4,
+        "AST": 0.0,
+        "REB": 6.8
+      },
+      "teammate": {
+        "PTS": 13.4,
+        "AST": 0.0,
+        "REB": 6.8
+      },
+      "return": {
+        "PTS": 13.4,
+        "AST": 0.0,
+        "REB": 6.8
+      },
+      "questionable": {
+        "PTS": 13.4,
+        "AST": 0.0,
+        "REB": 6.8
+      },
+      "final": {
+        "PTS": 13.4,
+        "AST": 0.0,
+        "REB": 6.8
+      }
+    }
+  },
+  {
+    "player": "Rudy Gobert",
+    "player_id": "203497",
+    "league": "NBA",
+    "date": "2026-10-23",
+    "lines": {
+      "PTS": 9.5,
+      "REB": 11.5
+    },
+    "predicted": {
+      "PTS": 5.5,
+      "REB": 9.1
+    },
+    "p_over": {
+      "PTS": 0.101,
+      "REB": 0.134
+    },
+    "actual": {},
+    "resolved": false,
+    "injury_status": null,
+    "created_at": "2026-10-22T22:08:26.706340+00:00",
+    "model_version": "legacy-unversioned",
+    "prediction_stages": {
+      "raw": {
+        "PTS": 5.5,
+        "AST": 1.1,
+        "REB": 9.1
+      },
+      "teammate": {
+        "PTS": 5.5,
+        "AST": 1.1,
+        "REB": 9.1
+      },
+      "return": {
+        "PTS": 5.5,
+        "AST": 1.1,
+        "REB": 9.1
+      },
+      "questionable": {
+        "PTS": 5.5,
+        "AST": 1.1,
+        "REB": 9.1
+      },
+      "final": {
+        "PTS": 5.5,
+        "AST": 1.1,
+        "REB": 9.1
+      }
+    }
+  },
+  {
+    "player": "Nikola Joki\u0107",
+    "player_id": "203999",
+    "league": "NBA",
+    "date": "2026-10-22",
+    "lines": {
+      "AST": 9.5,
+      "PTS": 24.5,
+      "REB": 12.5
+    },
+    "predicted": {
+      "PTS": 26.4,
+      "AST": 4.9,
+      "REB": 13.4
+    },
+    "p_over": {
+      "PTS": 0.639,
+      "AST": 0.016,
+      "REB": 0.65
+    },
+    "actual": {},
+    "resolved": false,
+    "injury_status": null,
+    "created_at": "2026-10-22T21:21:05.357051+00:00",
+    "model_version": "legacy-unversioned",
+    "prediction_stages": {
+      "raw": {
+        "PTS": 26.4,
+        "AST": 4.9,
+        "REB": 13.4
+      },
+      "teammate": {
+        "PTS": 26.4,
+        "AST": 4.9,
+        "REB": 13.4
+      },
+      "return": {
+        "PTS": 26.4,
+        "AST": 4.9,
+        "REB": 13.4
+      },
+      "questionable": {
+        "PTS": 26.4,
+        "AST": 4.9,
+        "REB": 13.4
+      },
+      "final": {
+        "PTS": 26.4,
+        "AST": 4.9,
+        "REB": 13.4
+      }
+    }
+  },
+  {
+    "player": "Alperen Sengun",
+    "player_id": "1630578",
+    "league": "NBA",
+    "date": "2026-10-23",
+    "lines": {
+      "AST": 4.5,
+      "PTS": 18.5,
+      "REB": 9.5
+    },
+    "predicted": {
+      "PTS": 22.1,
+      "AST": 5.9,
+      "REB": 7.5
+    },
+    "p_over": {
+      "PTS": 0.779,
+      "AST": 0.815,
+      "REB": 0.174
+    },
+    "actual": {},
+    "resolved": false,
+    "injury_status": null,
+    "created_at": "2026-10-22T22:08:58.524367+00:00",
+    "model_version": "legacy-unversioned",
+    "prediction_stages": {
+      "raw": {
+        "PTS": 22.1,
+        "AST": 5.9,
+        "REB": 7.5
+      },
+      "teammate": {
+        "PTS": 22.1,
+        "AST": 5.9,
+        "REB": 7.5
+      },
+      "return": {
+        "PTS": 22.1,
+        "AST": 5.9,
+        "REB": 7.5
+      },
+      "questionable": {
+        "PTS": 22.1,
+        "AST": 5.9,
+        "REB": 7.5
+      },
+      "final": {
+        "PTS": 22.1,
+        "AST": 5.9,
+        "REB": 7.5
+      }
+    }
+  },
+  {
+    "player": "Amen Thompson",
+    "player_id": "1641708",
+    "league": "NBA",
+    "date": "2026-10-23",
+    "lines": {
+      "AST": 4.5,
+      "PTS": 16.5,
+      "REB": 7.5
+    },
+    "predicted": {
+      "PTS": 21.2,
+      "AST": 4.0,
+      "REB": 8.7
+    },
+    "p_over": {
+      "PTS": 0.894,
+      "AST": 0.361,
+      "REB": 0.746
+    },
+    "actual": {},
+    "resolved": false,
+    "injury_status": null,
+    "created_at": "2026-10-22T22:09:01.189741+00:00",
+    "model_version": "legacy-unversioned",
+    "prediction_stages": {
+      "raw": {
+        "PTS": 21.2,
+        "AST": 4.0,
+        "REB": 8.7
+      },
+      "teammate": {
+        "PTS": 21.2,
+        "AST": 4.0,
+        "REB": 8.7
+      },
+      "return": {
+        "PTS": 21.2,
+        "AST": 4.0,
+        "REB": 8.7
+      },
+      "questionable": {
+        "PTS": 21.2,
+        "AST": 4.0,
+        "REB": 8.7
+      },
+      "final": {
+        "PTS": 21.2,
+        "AST": 4.0,
+        "REB": 8.7
+      }
+    }
+  },
+  {
+    "player": "Kevin Durant",
+    "player_id": "201142",
+    "league": "NBA",
+    "date": "2026-10-23",
+    "lines": {
+      "AST": 3.5,
+      "PTS": 23.5,
+      "REB": 5.5
+    },
+    "predicted": {
+      "PTS": 23.8,
+      "AST": 3.5,
+      "REB": 6.7
+    },
+    "p_over": {
+      "PTS": 0.53,
+      "AST": 0.5,
+      "REB": 0.818
+    },
+    "actual": {},
+    "resolved": false,
+    "injury_status": null,
+    "created_at": "2026-10-22T22:09:04.036341+00:00",
+    "model_version": "legacy-unversioned",
+    "prediction_stages": {
+      "raw": {
+        "PTS": 23.8,
+        "AST": 3.5,
+        "REB": 6.7
+      },
+      "teammate": {
+        "PTS": 23.8,
+        "AST": 3.5,
+        "REB": 6.7
+      },
+      "return": {
+        "PTS": 23.8,
+        "AST": 3.5,
+        "REB": 6.7
+      },
+      "questionable": {
+        "PTS": 23.8,
+        "AST": 3.5,
+        "REB": 6.7
+      },
+      "final": {
+        "PTS": 23.8,
+        "AST": 3.5,
+        "REB": 6.7
+      }
+    }
+  },
+  {
+    "player": "Jabari Smith Jr.",
+    "player_id": "1631095",
+    "league": "NBA",
+    "date": "2026-10-23",
+    "lines": {
+      "AST": 1.5,
+      "PTS": 13.5,
+      "REB": 5.5
+    },
+    "predicted": {
+      "PTS": 20.7,
+      "AST": 1.1,
+      "REB": 5.7
+    },
+    "p_over": {
+      "PTS": 0.985,
+      "AST": 0.306,
+      "REB": 0.547
+    },
+    "actual": {},
+    "resolved": false,
+    "injury_status": null,
+    "created_at": "2026-10-22T22:09:06.709649+00:00",
+    "model_version": "legacy-unversioned",
+    "prediction_stages": {
+      "raw": {
+        "PTS": 20.7,
+        "AST": 1.1,
+        "REB": 5.7
+      },
+      "teammate": {
+        "PTS": 20.7,
+        "AST": 1.1,
+        "REB": 5.7
+      },
+      "return": {
+        "PTS": 20.7,
+        "AST": 1.1,
+        "REB": 5.7
+      },
+      "questionable": {
+        "PTS": 20.7,
+        "AST": 1.1,
+        "REB": 5.7
+      },
+      "final": {
+        "PTS": 20.7,
+        "AST": 1.1,
+        "REB": 5.7
+      }
+    }
+  },
+  {
+    "player": "Cade Cunningham",
+    "player_id": "1630595",
+    "league": "NBA",
+    "date": "2026-10-23",
+    "lines": {
+      "AST": 9.5,
+      "PTS": 24.5,
+      "REB": 4.5
+    },
+    "predicted": {
+      "PTS": 16.9,
+      "AST": 7.3,
+      "REB": 3.7
+    },
+    "p_over": {
+      "PTS": 0.072,
+      "AST": 0.117,
+      "REB": 0.313
+    },
+    "actual": {},
+    "resolved": false,
+    "injury_status": null,
+    "created_at": "2026-10-22T22:08:29.454190+00:00",
+    "model_version": "legacy-unversioned",
+    "prediction_stages": {
+      "raw": {
+        "PTS": 16.9,
+        "AST": 7.3,
+        "REB": 3.7
+      },
+      "teammate": {
+        "PTS": 16.9,
+        "AST": 7.3,
+        "REB": 3.7
+      },
+      "return": {
+        "PTS": 16.9,
+        "AST": 7.3,
+        "REB": 3.7
+      },
+      "questionable": {
+        "PTS": 16.9,
+        "AST": 7.3,
+        "REB": 3.7
+      },
+      "final": {
+        "PTS": 16.9,
+        "AST": 7.3,
+        "REB": 3.7
+      }
+    }
+  },
+  {
+    "player": "Davion Mitchell",
+    "player_id": "1630558",
+    "league": "NBA",
+    "date": "2026-10-23",
+    "lines": {
+      "AST": 6.5,
+      "PTS": 8.5,
+      "REB": 2.5
+    },
+    "predicted": {
+      "PTS": 8.8,
+      "AST": 6.6,
+      "REB": 0.0
+    },
+    "p_over": {
+      "PTS": 0.545,
+      "AST": 0.525,
+      "REB": 0.006
+    },
+    "actual": {},
+    "resolved": false,
+    "injury_status": null,
+    "created_at": "2026-10-22T22:08:32.173734+00:00",
+    "model_version": "legacy-unversioned",
+    "prediction_stages": {
+      "raw": {
+        "PTS": 8.8,
+        "AST": 6.6,
+        "REB": 0.0
+      },
+      "teammate": {
+        "PTS": 8.8,
+        "AST": 6.6,
+        "REB": 0.0
+      },
+      "return": {
+        "PTS": 8.8,
+        "AST": 6.6,
+        "REB": 0.0
+      },
+      "questionable": {
+        "PTS": 8.8,
+        "AST": 6.6,
+        "REB": 0.0
+      },
+      "final": {
+        "PTS": 8.8,
+        "AST": 6.6,
+        "REB": 0.0
+      }
+    }
+  },
+  {
+    "player": "Giannis Antetokounmpo",
+    "player_id": "203507",
+    "league": "NBA",
+    "date": "2026-10-23",
+    "lines": {
+      "AST": 5.5,
+      "PTS": 28.5,
+      "REB": 10.5
+    },
+    "predicted": {
+      "PTS": 26.7,
+      "AST": 1.1,
+      "REB": 6.4
+    },
+    "p_over": {
+      "PTS": 0.35,
+      "AST": 0.015,
+      "REB": 0.048
+    },
+    "actual": {},
+    "resolved": false,
+    "injury_status": null,
+    "created_at": "2026-10-22T22:08:34.901007+00:00",
+    "model_version": "legacy-unversioned",
+    "prediction_stages": {
+      "raw": {
+        "PTS": 26.7,
+        "AST": 1.1,
+        "REB": 6.4
+      },
+      "teammate": {
+        "PTS": 26.7,
+        "AST": 1.1,
+        "REB": 6.4
+      },
+      "return": {
+        "PTS": 26.7,
+        "AST": 1.1,
+        "REB": 6.4
+      },
+      "questionable": {
+        "PTS": 26.7,
+        "AST": 1.1,
+        "REB": 6.4
+      },
+      "final": {
+        "PTS": 26.7,
+        "AST": 1.1,
+        "REB": 6.4
+      }
+    }
+  },
+  {
+    "player": "Ausar Thompson",
+    "player_id": "1641709",
+    "league": "NBA",
+    "date": "2026-10-23",
+    "lines": {
+      "AST": 4.5,
+      "PTS": 10.5,
+      "REB": 6.5
+    },
+    "predicted": {
+      "PTS": 7.8,
+      "AST": 3.5,
+      "REB": 7.2
+    },
+    "p_over": {
+      "PTS": 0.147,
+      "AST": 0.217,
+      "REB": 0.671
+    },
+    "actual": {},
+    "resolved": false,
+    "injury_status": null,
+    "created_at": "2026-10-22T22:08:37.626008+00:00",
+    "model_version": "legacy-unversioned",
+    "prediction_stages": {
+      "raw": {
+        "PTS": 7.8,
+        "AST": 3.5,
+        "REB": 7.2
+      },
+      "teammate": {
+        "PTS": 7.8,
+        "AST": 3.5,
+        "REB": 7.2
+      },
+      "return": {
+        "PTS": 7.8,
+        "AST": 3.5,
+        "REB": 7.2
+      },
+      "questionable": {
+        "PTS": 7.8,
+        "AST": 3.5,
+        "REB": 7.2
+      },
+      "final": {
+        "PTS": 7.8,
+        "AST": 3.5,
+        "REB": 7.2
+      }
+    }
+  },
+  {
+    "player": "Bam Adebayo",
+    "player_id": "1628389",
+    "league": "NBA",
+    "date": "2026-10-23",
+    "lines": {
+      "AST": 3.5,
+      "PTS": 16.5,
+      "REB": 8.5
+    },
+    "predicted": {
+      "PTS": 18.4,
+      "AST": 3.8,
+      "REB": 8.6
+    },
+    "p_over": {
+      "PTS": 0.624,
+      "AST": 0.607,
+      "REB": 0.52
+    },
+    "actual": {},
+    "resolved": false,
+    "injury_status": null,
+    "created_at": "2026-10-22T22:08:40.349226+00:00",
+    "model_version": "legacy-unversioned",
+    "prediction_stages": {
+      "raw": {
+        "PTS": 18.4,
+        "AST": 3.8,
+        "REB": 8.6
+      },
+      "teammate": {
+        "PTS": 18.4,
+        "AST": 3.8,
+        "REB": 8.6
+      },
+      "return": {
+        "PTS": 18.4,
+        "AST": 3.8,
+        "REB": 8.6
+      },
+      "questionable": {
+        "PTS": 18.4,
+        "AST": 3.8,
+        "REB": 8.6
+      },
+      "final": {
+        "PTS": 18.4,
+        "AST": 3.8,
+        "REB": 8.6
+      }
+    }
+  },
+  {
+    "player": "Jalen Duren",
+    "player_id": "1631105",
+    "league": "NBA",
+    "date": "2026-10-23",
+    "lines": {
+      "AST": 2.5,
+      "PTS": 17.5,
+      "REB": 9.5
+    },
+    "predicted": {
+      "PTS": 25.2,
+      "AST": 0.8,
+      "REB": 8.5
+    },
+    "p_over": {
+      "PTS": 0.969,
+      "AST": 0.027,
+      "REB": 0.337
+    },
+    "actual": {},
+    "resolved": false,
+    "injury_status": null,
+    "created_at": "2026-10-22T22:08:43.048872+00:00",
+    "model_version": "legacy-unversioned",
+    "prediction_stages": {
+      "raw": {
+        "PTS": 25.2,
+        "AST": 0.8,
+        "REB": 8.5
+      },
+      "teammate": {
+        "PTS": 25.2,
+        "AST": 0.8,
+        "REB": 8.5
+      },
+      "return": {
+        "PTS": 25.2,
+        "AST": 0.8,
+        "REB": 8.5
+      },
+      "questionable": {
+        "PTS": 25.2,
+        "AST": 0.8,
+        "REB": 8.5
+      },
+      "final": {
+        "PTS": 25.2,
+        "AST": 0.8,
+        "REB": 8.5
+      }
+    }
+  },
+  {
+    "player": "Andrew Wiggins",
+    "player_id": "203952",
+    "league": "NBA",
+    "date": "2026-10-23",
+    "lines": {
+      "AST": 1.5,
+      "PTS": 13.5,
+      "REB": 3.5
+    },
+    "predicted": {
+      "PTS": 12.3,
+      "AST": 1.1,
+      "REB": 2.2
+    },
+    "p_over": {
+      "PTS": 0.366,
+      "AST": 0.33,
+      "REB": 0.177
+    },
+    "actual": {},
+    "resolved": false,
+    "injury_status": null,
+    "created_at": "2026-10-22T22:08:45.772400+00:00",
+    "model_version": "legacy-unversioned",
+    "prediction_stages": {
+      "raw": {
+        "PTS": 12.3,
+        "AST": 1.1,
+        "REB": 2.2
+      },
+      "teammate": {
+        "PTS": 12.3,
+        "AST": 1.1,
+        "REB": 2.2
+      },
+      "return": {
+        "PTS": 12.3,
+        "AST": 1.1,
+        "REB": 2.2
+      },
+      "questionable": {
+        "PTS": 12.3,
+        "AST": 1.1,
+        "REB": 2.2
+      },
+      "final": {
+        "PTS": 12.3,
+        "AST": 1.1,
+        "REB": 2.2
+      }
+    }
+  },
+  {
+    "player": "Duncan Robinson",
+    "player_id": "1629130",
+    "league": "NBA",
+    "date": "2026-10-23",
+    "lines": {
+      "AST": 1.5,
+      "PTS": 11.5,
+      "REB": 2.5
+    },
+    "predicted": {
+      "PTS": 12.5,
+      "AST": 2.1,
+      "REB": 2.1
+    },
+    "p_over": {
+      "PTS": 0.627,
+      "AST": 0.755,
+      "REB": 0.337
+    },
+    "actual": {},
+    "resolved": false,
+    "injury_status": null,
+    "created_at": "2026-10-22T22:08:48.623173+00:00",
+    "model_version": "legacy-unversioned",
+    "prediction_stages": {
+      "raw": {
+        "PTS": 12.5,
+        "AST": 2.1,
+        "REB": 2.1
+      },
+      "teammate": {
+        "PTS": 12.5,
+        "AST": 2.1,
+        "REB": 2.1
+      },
+      "return": {
+        "PTS": 12.5,
+        "AST": 2.1,
+        "REB": 2.1
+      },
+      "questionable": {
+        "PTS": 12.5,
+        "AST": 2.1,
+        "REB": 2.1
+      },
+      "final": {
+        "PTS": 12.5,
+        "AST": 2.1,
+        "REB": 2.1
+      }
+    }
+  },
+  {
+    "player": "John Collins",
+    "player_id": "1628381",
+    "league": "NBA",
+    "date": "2026-10-23",
+    "lines": {
+      "AST": 1.5,
+      "PTS": 13.5,
+      "REB": 5.5
+    },
+    "predicted": {
+      "PTS": 5.9,
+      "AST": 0.9,
+      "REB": 3.8
+    },
+    "p_over": {
+      "PTS": 0.012,
+      "AST": 0.185,
+      "REB": 0.142
+    },
+    "actual": {},
+    "resolved": false,
+    "injury_status": null,
+    "created_at": "2026-10-22T22:08:51.427423+00:00",
+    "model_version": "legacy-unversioned",
+    "prediction_stages": {
+      "raw": {
+        "PTS": 5.9,
+        "AST": 0.9,
+        "REB": 3.8
+      },
+      "teammate": {
+        "PTS": 5.9,
+        "AST": 0.9,
+        "REB": 3.8
+      },
+      "return": {
+        "PTS": 5.9,
+        "AST": 0.9,
+        "REB": 3.8
+      },
+      "questionable": {
+        "PTS": 5.9,
+        "AST": 0.9,
+        "REB": 3.8
+      },
+      "final": {
+        "PTS": 5.9,
+        "AST": 0.9,
+        "REB": 3.8
+      }
+    }
+  },
+  {
+    "player": "Klay Thompson",
+    "player_id": "202691",
+    "league": "NBA",
+    "date": "2026-10-23",
+    "lines": {
+      "PTS": 10.5
+    },
+    "predicted": {
+      "PTS": 9.6
+    },
+    "p_over": {
+      "PTS": 0.4
+    },
+    "actual": {},
+    "resolved": false,
+    "injury_status": null,
+    "created_at": "2026-10-22T22:08:54.221684+00:00",
+    "model_version": "legacy-unversioned",
+    "prediction_stages": {
+      "raw": {
+        "PTS": 9.6,
+        "AST": 0.0,
+        "REB": 1.3
+      },
+      "teammate": {
+        "PTS": 9.6,
+        "AST": 0.0,
+        "REB": 1.3
+      },
+      "return": {
+        "PTS": 9.6,
+        "AST": 0.0,
+        "REB": 1.3
+      },
+      "questionable": {
+        "PTS": 9.6,
+        "AST": 0.0,
+        "REB": 1.3
+      },
+      "final": {
+        "PTS": 9.6,
+        "AST": 0.0,
+        "REB": 1.3
+      }
+    }
+  },
+  {
+    "player": "DeWanna Bonner",
+    "player_id": "869",
+    "league": "WNBA",
+    "date": "2026-10-24",
+    "lines": {
+      "PTS": 6.5,
+      "REB": 3.5
+    },
+    "predicted": {
+      "PTS": 6.1,
+      "REB": 6.2
+    },
+    "p_over": {
+      "PTS": 0.453,
+      "REB": 0.946
+    },
+    "actual": {},
+    "resolved": false,
+    "injury_status": null,
+    "created_at": "2026-10-22T22:09:23.174160+00:00",
+    "model_version": "legacy-unversioned",
+    "prediction_stages": {
+      "raw": {
+        "PTS": 6.1,
+        "AST": 1.7,
+        "REB": 6.2
+      },
+      "teammate": {
+        "PTS": 6.1,
+        "AST": 1.7,
+        "REB": 6.2
+      },
+      "return": {
+        "PTS": 6.1,
+        "AST": 1.7,
+        "REB": 6.2
+      },
+      "questionable": {
+        "PTS": 6.1,
+        "AST": 1.7,
+        "REB": 6.2
+      },
+      "final": {
+        "PTS": 6.1,
+        "AST": 1.7,
+        "REB": 6.2
+      }
+    }
+  },
+  {
+    "player": "Norman Powell",
+    "player_id": "1626181",
+    "league": "NBA",
+    "date": "2026-10-23",
+    "lines": {
+      "PTS": 20.5
+    },
+    "predicted": {
+      "PTS": 17.7
+    },
+    "p_over": {
+      "PTS": 0.246
+    },
+    "actual": {},
+    "resolved": false,
+    "injury_status": null,
+    "created_at": "2026-10-22T22:14:08.483547+00:00",
+    "model_version": "legacy-unversioned",
+    "prediction_stages": {
+      "raw": {
+        "PTS": 17.7,
+        "AST": 1.2,
+        "REB": 3.3
+      },
+      "teammate": {
+        "PTS": 17.7,
+        "AST": 1.2,
+        "REB": 3.3
+      },
+      "return": {
+        "PTS": 17.7,
+        "AST": 1.2,
+        "REB": 3.3
+      },
+      "questionable": {
+        "PTS": 17.7,
+        "AST": 1.2,
+        "REB": 3.3
+      },
+      "final": {
+        "PTS": 17.7,
+        "AST": 1.2,
+        "REB": 3.3
+      }
+    }
+  },
+  {
+    "player": "Matas Buzelis",
+    "player_id": "1641824",
+    "league": "NBA",
+    "date": "2026-10-23",
+    "lines": {
+      "PTS": 16.5
+    },
+    "predicted": {
+      "PTS": 18.3
+    },
+    "p_over": {
+      "PTS": 0.67
+    },
+    "actual": {},
+    "resolved": false,
+    "injury_status": null,
+    "created_at": "2026-10-22T22:14:08.695713+00:00",
+    "model_version": "legacy-unversioned",
+    "prediction_stages": {
+      "raw": {
+        "PTS": 18.3,
+        "AST": 0.0,
+        "REB": 5.9
+      },
+      "teammate": {
+        "PTS": 18.3,
+        "AST": 0.0,
+        "REB": 5.9
+      },
+      "return": {
+        "PTS": 18.3,
+        "AST": 0.0,
+        "REB": 5.9
+      },
+      "questionable": {
+        "PTS": 18.3,
+        "AST": 0.0,
+        "REB": 5.9
+      },
+      "final": {
+        "PTS": 18.3,
+        "AST": 0.0,
+        "REB": 5.9
+      }
+    }
+  },
+  {
+    "player": "Caleb Wilson",
+    "player_id": "1643410",
+    "league": "NBA",
+    "date": "2026-10-23",
+    "lines": {
+      "PTS": 15.5
+    },
+    "predicted": {
+      "PTS": 14.0
+    },
+    "p_over": {
+      "PTS": 0.067
+    },
+    "actual": {},
+    "resolved": false,
+    "injury_status": null,
+    "created_at": "2026-10-22T22:14:09.176384+00:00",
+    "model_version": "limited-history-average-v1",
+    "prediction_stages": {
+      "raw": {
+        "PTS": 14.0,
+        "AST": 0.0,
+        "REB": 3.0
+      },
+      "final": {
+        "PTS": 14.0,
+        "AST": 0.0,
+        "REB": 3.0
+      }
+    }
+  },
+  {
+    "player": "Josh Giddey",
+    "player_id": "1630581",
+    "league": "NBA",
+    "date": "2026-10-23",
+    "lines": {
+      "PTS": 13.5
+    },
+    "predicted": {
+      "PTS": 2.6
+    },
+    "p_over": {
+      "PTS": 0.005
+    },
+    "actual": {},
+    "resolved": false,
+    "injury_status": "Day-To-Day",
+    "created_at": "2026-10-22T22:14:09.356604+00:00",
+    "model_version": "legacy-unversioned",
+    "prediction_stages": {
+      "raw": {
+        "PTS": 2.8,
+        "AST": 6.2,
+        "REB": 7.7
+      },
+      "teammate": {
+        "PTS": 2.8,
+        "AST": 6.2,
+        "REB": 7.7
+      },
+      "return": {
+        "PTS": 2.8,
+        "AST": 6.2,
+        "REB": 7.7
+      },
+      "questionable": {
+        "PTS": 2.6,
+        "AST": 5.8,
+        "REB": 7.2
+      },
+      "final": {
+        "PTS": 2.6,
+        "AST": 5.8,
+        "REB": 7.2
+      }
+    }
+  },
+  {
+    "player": "Jalen Smith",
+    "player_id": "1630188",
+    "league": "NBA",
+    "date": "2026-10-23",
+    "lines": {
+      "PTS": 12.5
+    },
+    "predicted": {
+      "PTS": 7.1
+    },
+    "p_over": {
+      "PTS": 0.022
+    },
+    "actual": {},
+    "resolved": false,
+    "injury_status": null,
+    "created_at": "2026-10-22T22:14:09.544707+00:00",
+    "model_version": "legacy-unversioned",
+    "prediction_stages": {
+      "raw": {
+        "PTS": 7.1,
+        "AST": 1.1,
+        "REB": 8.8
+      },
+      "teammate": {
+        "PTS": 7.1,
+        "AST": 1.1,
+        "REB": 8.8
+      },
+      "return": {
+        "PTS": 7.1,
+        "AST": 1.1,
+        "REB": 8.8
+      },
+      "questionable": {
+        "PTS": 7.1,
+        "AST": 1.1,
+        "REB": 8.8
+      },
+      "final": {
+        "PTS": 7.1,
+        "AST": 1.1,
+        "REB": 8.8
+      }
+    }
+  },
+  {
+    "player": "Fred VanVleet",
+    "player_id": "1627832",
+    "league": "NBA",
+    "date": "2026-10-23",
+    "lines": {
+      "AST": 6.5,
+      "PTS": 11.5,
+      "REB": 2.5
+    },
+    "predicted": {
+      "PTS": 6.0,
+      "AST": 11.0,
+      "REB": 2.0
+    },
+    "p_over": {
+      "PTS": 0.0,
+      "AST": 1.0,
+      "REB": 0.309
+    },
+    "actual": {},
+    "resolved": false,
+    "injury_status": null,
+    "created_at": "2026-10-22T22:14:09.781623+00:00",
+    "model_version": "limited-history-average-v1",
+    "prediction_stages": {
+      "raw": {
+        "PTS": 6.0,
+        "AST": 11.0,
+        "REB": 2.0
+      },
+      "final": {
+        "PTS": 6.0,
+        "AST": 11.0,
+        "REB": 2.0
+      }
+    }
   }
 ]

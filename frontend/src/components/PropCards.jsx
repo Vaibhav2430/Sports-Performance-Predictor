@@ -22,6 +22,10 @@ export default function PropCards({ predictions, gameLog, lines = {} }) {
 
 function PropCard({ stat, p, gameLog, line }) {
   const { key, label, cls, color } = stat
+  if (!p || p.prediction == null) return (
+    <div className={`prop-card ${cls}`}><div className="prop-stat-name">{label}</div>
+      <div className="prop-number">—</div><div className="prop-sublabel">No posted line or usable history</div></div>
+  )
 
   const last5 = gameLog.slice(0, 5)
   const hits  = last5.filter(g => g[key] > p.prediction).length
@@ -57,7 +61,7 @@ function PropCard({ stat, p, gameLog, line }) {
       </div>
 
       <div className="prop-number">{p.prediction}</div>
-      <div className="prop-sublabel">Projection</div>
+      <div className="prop-sublabel">{p.basis ? 'DraftKings-based estimate' : 'Projection'}</div>
 
       {hasLine && (
         <div className="pp-line">
@@ -77,7 +81,7 @@ function PropCard({ stat, p, gameLog, line }) {
       )}
 
       {/* Hit rate dots — relative to line when available */}
-      <div className="hit-row">
+      {last5.length > 0 && <div className="hit-row">
         {lineDots.map((type, i) => (
           <div key={i} className={`hit-dot ${type}`} title={type} />
         ))}
@@ -85,17 +89,17 @@ function PropCard({ stat, p, gameLog, line }) {
           L5: <span className="hit-rate">{lineHits}/5</span>{' '}
           {line != null ? `over ${line}` : 'over proj'}
         </span>
-      </div>
+      </div>}
 
       {/* Meta */}
       <div className="prop-meta">
         <div className="prop-meta-item">
           <div className="meta-label">L5 Avg</div>
-          <div className="meta-val" style={{ color }}>{p.last5_avg}</div>
+          <div className="meta-val" style={{ color }}>{p.last5_avg ?? '—'}</div>
         </div>
         <div className="prop-meta-item">
           <div className="meta-label">Season</div>
-          <div className="meta-val">{p.season_avg}</div>
+          <div className="meta-val">{p.season_avg ?? '—'}</div>
         </div>
       </div>
     </div>

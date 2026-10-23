@@ -513,7 +513,10 @@ def predict(player_name: str) -> dict:
             curr_games   = df[stat].tail(current_season_n) if current_season_n > 0 else df[stat]
             curr_min     = df["MIN"].tail(current_season_n) if current_season_n > 0 else df["MIN"]
             season_avg   = float(curr_games.mean())
-            std          = float(curr_games.std())
+            # A single current-season game has undefined sample variance.
+            # Use the available prior history until two current games exist.
+            spread_games = curr_games if len(curr_games) >= 2 else df[stat]
+            std          = float(spread_games.std()) if len(spread_games) > 1 else 0.0
             curr_min_avg = float(curr_min.mean())
 
             # Symmetric sanity band around the season average, then a minutes-based

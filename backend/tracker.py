@@ -1,4 +1,5 @@
 import json
+import math
 import os
 import threading
 from datetime import date, datetime, timezone
@@ -26,6 +27,11 @@ def _save(log: list):
         json.dump(log, f, indent=2)
 
 
+def has_valid_predictions(entry: dict) -> bool:
+    values = entry.get("predicted", {})
+    return bool(values) and all(isinstance(v, (int, float)) and math.isfinite(v) for v in values.values())
+
+
 def log_prediction(player: str, player_id, league: str, lines: dict, predictions: dict,
                     injury_status: str = None, game_date: str = None,
                     prediction_stages: dict = None, model_version: str = None):
@@ -35,7 +41,7 @@ def log_prediction(player: str, player_id, league: str, lines: dict, predictions
     with lock:
         log = _load()
         # Skip duplicate unresolved entry for same player + game date
-        if any(e["player"] == player and e["date"] == game_date and not e["resolved"] for e in log):
+        if any(e["player"] == player and e["date"] == game_date and not e["resolved"] and has_valid_predictions(e) for e in log):
             return
         entry = {
             "player":         player,
@@ -44,7 +50,7 @@ def log_prediction(player: str, player_id, league: str, lines: dict, predictions
             "date":           game_date,
             "lines":          {k: float(v) for k, v in lines.items()},
             "predicted":      {k: round(float(predictions[k]["prediction"]), 1)
-                               for k in predictions if k in lines},
+                               for k in predictions if k in lines and predictions[k].get("prediction") is not None},
             "p_over":         {k: predictions[k]["p_over"]
                                for k in predictions
                                if k in lines and predictions[k].get("p_over") is not None},
@@ -55,7 +61,15 @@ def log_prediction(player: str, player_id, league: str, lines: dict, predictions
             "model_version": model_version or "legacy-unversioned",
             "prediction_stages": prediction_stages or {},
         }
-        log.append(entry)
+        if not has_valid_predictions(entry):
+            raise ValueError("Cannot save non-finite predictions")
+        invalid = next((i for i, e in enumerate(log)
+                        if e["player"] == player and e["date"] == game_date
+                        and not e["resolved"] and not has_valid_predictions(e)), None)
+        if invalid is None:
+            log.append(entry)
+        else:
+            log[invalid] = entry
         _save(log)
 
 
@@ -80,6 +94,7 @@ def mark_excluded(entry: dict):
 
 
 def compute_stats(log: list, league: str = None) -> dict:
+    log = [e for e in log if league is None or e.get("league") == league]
     resolved = [
         e for e in log
         if e.get("resolved") and not e.get("excluded")
@@ -99,6 +114,8 @@ def compute_stats(log: list, league: str = None) -> dict:
             act  = entry["actual"].get(stat)
             line = entry["lines"].get(stat)
             if pred is None or act is None or line is None:
+                continue
+            if not all(math.isfinite(float(v)) for v in (pred, act, line)):
                 continue
             if stat not in by_stat:
                 continue
@@ -123,7 +140,7 @@ def compute_stats(log: list, league: str = None) -> dict:
         "correct":        correct,
         "pct":            round(correct / total * 100, 1) if total else None,
         "resolved_count": len(resolved),
-        "pending_count":  len(log) - len(resolved),
+        "pending_count":  sum(not e.get("resolved") for e in log),
         "by_stat": {
             stat: {
                 **v,

@@ -4,6 +4,7 @@ import { teamLogoUrl as teamLogo } from '../teamLogo'
 
 export default function GamesSidebar({ league, selectedGameId, onSelectGame }) {
   const [games, setGames]     = useState([])
+  const [error, setError] = useState(false)
   const [loading, setLoading] = useState(true)
 
   async function fetchGames() {
@@ -12,14 +13,17 @@ export default function GamesSidebar({ league, selectedGameId, onSelectGame }) {
       const endpoint = league === 'WNBA' ? '/wnba/games/today' : '/games/today'
       const res = await axios.get(endpoint)
       setGames(res.data)
+      setError(false)
     } catch {
-      setGames([])
+      setError(true)
     } finally {
       setLoading(false)
     }
   }
 
   useEffect(() => {
+    setGames([])
+    setError(false)
     fetchGames()
     const interval = setInterval(fetchGames, 30000)
     return () => clearInterval(interval)
@@ -38,7 +42,9 @@ export default function GamesSidebar({ league, selectedGameId, onSelectGame }) {
 
       {loading && <div className="sidebar-spinner" />}
 
-      {!loading && games.length === 0 && (
+      {!loading && error && <div className="no-games">Unable to refresh the schedule. Retrying shortly.</div>}
+
+      {!loading && !error && games.length === 0 && (
         <div className="no-games">
           No games scheduled today.
         </div>

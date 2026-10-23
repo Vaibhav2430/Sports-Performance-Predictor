@@ -128,12 +128,23 @@ def build_reasoning(result: dict, league: str = "NBA") -> dict:
     dampening   = result.get("return_dampening") or []
     subject, possessive = ("she", "her") if league.upper() == "WNBA" else ("he", "his")
 
+    if result.get("model_version") == "draftkings-matchup-reference-v1":
+        blocks = [f"{player} has no usable NBA game history. These estimates start from posted DraftKings lines."]
+        for stat in GRADED_STATS:
+            p = preds.get(stat, {})
+            if p.get("prediction") is not None:
+                blocks.append(f"{stat}: {p['prediction']} from {p.get('basis', 'DraftKings line')}. This is an uncalibrated reference estimate.")
+            else:
+                blocks.append(f"{stat}: no posted line is available.")
+        blocks.extend(result.get("warnings", []))
+        return {"player": player, "blocks": blocks}
+
     blocks: list[str] = [f"Here's what's driving the {player} projections for the next game:"]
 
     leans: list[str] = []
     for stat in GRADED_STATS:
         p = preds.get(stat)
-        if not p:
+        if not p or p.get("prediction") is None:
             continue
         pred = float(p["prediction"])
         parts = [f"{stat}: model projects {pred}"]

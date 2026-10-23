@@ -137,3 +137,48 @@ GET /wnba/search?q=clark
 GET /games/today
 GET /wnba/games/today
 ```
+
+Automatic predictions run when the backend starts and every hour afterward.
+Each league is retried independently, and saved player/game predictions are
+skipped. Keep the backend running and the computer awake for ongoing checks;
+starting it again checks the currently available lines, not historical ones.
+NBA schedules use an explicit Eastern date from ESPN, with the NBA live feed
+as a fallback. Feed failures appear as an error instead of an empty schedule.
+
+## NBA season-to-date backtest
+
+Run `.venv/bin/python backend/backtest_season.py --season 2026-27 --refresh`
+to download regular-season box scores and reconstruct predictions for completed
+Eastern game days before today. Omit `--refresh` to reuse downloaded CSVs.
+Last season supplies early-season training history. Every target uses strictly
+earlier player games; players with fewer than 15 prior games are reported as
+skipped. Preseason games are excluded. The existing `current_history_only`
+XGBoost evaluation configuration and production sanity caps are fixed in advance.
+Historical injuries and opponent ratings are excluded, so this is not an exact
+replay of the live model. It does not alter the live prediction log.
+
+The backtest report records average error and the fraction within ±5 points,
+±2 assists, and ±3 rebounds. These are not betting win rates. The top NBA accuracy
+cards retain these season backtest results; WNBA cards show saved over/under results. Outputs: `backend/evaluation_results/nba_season/report.json`
+and `predictions.csv`, including actuals, predictions, and training cutoff dates.
+
+Both leagues share prediction adjustments, injury checks, forecast logging,
+automatic seeding, and hourly box-score grading. The header uses the same card layout for each league. NBA shows season backtest
+percentages and counts; WNBA shows over/under percentages and counts. Hover for
+the metric definition. Backtest results remain separate from live forecast logs.
+
+NBA predictions now share league-wide regular-season box-score snapshots across
+players. Live requests have a time limit and can use a labeled saved snapshot
+when the feed fails. Optional matchup enrichment refreshes in the background.
+Players with 1–14 usable games receive a labeled recent-average estimate. Players
+without usable history receive a DraftKings-based reference when lines exist;
+verified team/opponent pace and defense can apply a heuristic capped at ±5%.
+This heuristic is uncalibrated, and lines may already reflect the matchup.
+No probability is reported for these market references. Unposted stats remain
+unavailable. No-history players without lines receive an explicit explanation.
+
+Run `.venv/bin/python backend/audit_nba_players.py` to exercise the NBA predictor
+across the installed active-player directory using saved real box scores and
+missing optional matchup data. Results go to
+`backend/evaluation_results/nba_player_audit.json`. This checks forecast generation
+and JSON validity; it does not measure accuracy or audit live feed availability.

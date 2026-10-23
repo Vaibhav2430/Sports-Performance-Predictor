@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import axios from 'axios'
 import GamesSidebar from './components/GamesSidebar'
 import AccuracyCards from './components/AccuracyCards'
@@ -12,6 +12,7 @@ import HomeExplore from './components/HomeExplore'
 import { teamLogoUrl as teamLogoUrlFor } from './teamLogo'
 
 export default function App() {
+  const predictionRequest = useRef(0)
   const [league, setLeague]     = useState('NBA')   // 'NBA' | 'WNBA'
   const [data, setData]         = useState(null)
   const [loading, setLoading]   = useState(false)
@@ -20,6 +21,8 @@ export default function App() {
 
   function switchLeague(l) {
     if (l === league) return
+    predictionRequest.current += 1
+    setLoading(false)
     setLeague(l)
     setData(null)
     setError(null)
@@ -27,6 +30,7 @@ export default function App() {
   }
 
   async function handleSearch(playerName) {
+    const requestId = ++predictionRequest.current
     setSelectedGame(null)
     setLoading(true)
     setError(null)
@@ -34,11 +38,11 @@ export default function App() {
     const endpoint = league === 'WNBA' ? '/wnba/predict' : '/predict'
     try {
       const res = await axios.get(endpoint, { params: { player: playerName } })
-      setData(res.data)
+      if (requestId === predictionRequest.current) setData(res.data)
     } catch (err) {
-      setError(err.response?.data?.detail ?? 'Player not found or no data available.')
+      if (requestId === predictionRequest.current) setError(err.response?.data?.detail ?? 'The prediction service could not complete this request. Please retry shortly.')
     } finally {
-      setLoading(false)
+      if (requestId === predictionRequest.current) setLoading(false)
     }
   }
 
@@ -79,7 +83,7 @@ export default function App() {
         {/* League toggle */}
         <div className="league-toggle">
           <button
-            className={`league-btn ${league === 'NBA' ? 'active' : ''}`}
+            className={`league-btn wnba ${league === 'NBA' ? 'active' : ''}`}
             onClick={() => switchLeague('NBA')}
           >
             NBA
@@ -125,9 +129,7 @@ export default function App() {
             <div className="loading">
               <div className="spinner" />
               <span>
-                {isWNBA
-                  ? 'Fetching WNBA game log & training model… (~15s)'
-                  : 'Fetching game log & training model… (~10s)'}
+                {`Fetching ${league} game log & training model…`}
               </span>
             </div>
           )}
@@ -136,7 +138,7 @@ export default function App() {
             <div className="results fade-in">
               <div className="player-banner">
                 <div className="player-left">
-                  <div className="player-avi" style={isWNBA ? { background: 'linear-gradient(135deg,#b83bff,#ff2d95)' } : {}}>
+                  <div className="player-avi" style={{ background: 'linear-gradient(135deg,#b83bff,#ff2d95)' }}>
                     {teamLogoUrl()
                       ? <img src={teamLogoUrl()} alt={data.team} style={{ width: '85%', height: '85%', objectFit: 'contain' }} />
                       : '🏀'}
@@ -156,6 +158,10 @@ export default function App() {
                 </div>
               </div>
 
+              {data.warnings?.length > 0 && <div className="prediction-note" role="status">
+                {data.warnings.map((warning, index) => <p key={index}>{warning}</p>)}
+              </div>}
+
               {data.injury && (() => {
                 const inj = data.injury
                 const isOut = inj.status.toLowerCase() === 'out'
@@ -174,11 +180,13 @@ export default function App() {
               <div className="section-label">Next Game Projections</div>
               <PropCards predictions={data.predictions} gameLog={data.game_log} league={league} lines={data.lines ?? {}} />
 
+              {data.game_log.length > 0 ? <>
               <div className="section-label">Performance Trend</div>
               <StatChart gameLog={data.game_log} predictions={data.predictions} />
 
               <div className="section-label">Game Log</div>
               <GameLogTable gameLog={data.game_log} predictions={data.predictions} league={league} />
+              </> : <div className="prediction-note">No NBA game history available yet. Recent averages and performance charts will appear after the player has played.</div>}
             </div>
           )}
         </main>

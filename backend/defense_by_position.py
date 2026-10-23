@@ -127,6 +127,7 @@ def fetch_nba_def_by_pos(season: str) -> dict:
                 season=season,
                 opponent_team_id=str(team["id"]),
                 per_mode_detailed="PerGame",
+                timeout=8,
             ).get_data_frames()[0]
             for _, row in df.iterrows():
                 name = str(row.get("PLAYER_NAME", "")).lower()

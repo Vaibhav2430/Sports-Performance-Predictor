@@ -38,26 +38,42 @@ export default function AccuracyCards({ league }) {
   const timer = useRef(null)
 
   useEffect(() => {
-    function fetchAndSchedule() {
-      axios.get(`/accuracy?league=${league}`).then(r => setStats(r.data)).catch(() => setStats(null))
-      timer.current = setTimeout(fetchAndSchedule, msUntilNextFire())
+    let active = true
+    setStats(null)
+    async function fetchAndSchedule() {
+      try {
+        const { data } = await axios.get(league === 'NBA' ? '/accuracy/backtest' : `/accuracy?league=${league}`)
+        if (active) setStats(league === 'NBA' ? {
+          total: data.player_games,
+          note: `${data.season} historical backtest · ${data.completed_games} games · ${data.date_start} through ${data.date_end}. ${data.note}`,
+          by_stat: Object.fromEntries(Object.entries(data.by_stat).map(([key, stat]) => [key, {
+            pct: stat.within_margin_pct, correct: stat.within_margin, total: stat.n,
+            margin: stat.margin, mae: stat.mae,
+          }])),
+        } : data)
+      } catch {
+        if (active) setStats(null)
+      }
+      if (active) timer.current = setTimeout(fetchAndSchedule, msUntilNextFire())
     }
     fetchAndSchedule()
-    return () => clearTimeout(timer.current)
+    return () => { active = false; clearTimeout(timer.current) }
   }, [league])
 
   const hasData = stats && stats.total > 0
 
   return (
     <div className="accuracy-section">
-      <div className="accuracy-title">O/U Accuracy</div>
+      <div className="accuracy-title">{league === 'NBA' ? 'Historical backtest' : 'O/U Accuracy'}</div>
 
       <div className="accuracy-cards">
         {STATS.map(({ key, label, color }) => {
           const s = hasData ? stats.by_stat[key] : null
           const hasStatData = s && s.total > 0
           return (
-            <div key={key} className="accuracy-card">
+            <div key={key} className="accuracy-card" title={league === 'NBA' && hasStatData
+              ? `${stats.note} ${label}: ${s.correct}/${s.total} within ±${s.margin}; average error ${s.mae}.`
+              : `${label} over/under accuracy`}>
               <div className="accuracy-card-label" style={{ color }}>{label}</div>
               <div
                 className="accuracy-card-pct"
