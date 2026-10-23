@@ -44,11 +44,11 @@ FEATURE_COLS = [
 ]
 
 
-def fetch_team_defense_stats() -> dict:
+def fetch_team_defense_stats(season: str = CURRENT_SEASON) -> dict:
     id_to_abbr = {t["id"]: t["abbreviation"] for t in nba_teams.get_teams()}
     time.sleep(0.65)
     stats = leaguedashteamstats.LeagueDashTeamStats(
-        season=CURRENT_SEASON,
+        season=season,
         measure_type_detailed_defense="Advanced",
         per_mode_detailed="PerGame",
         timeout=10,

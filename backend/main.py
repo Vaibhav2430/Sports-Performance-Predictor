@@ -359,9 +359,22 @@ def _predict_and_record(player: str, league: str, minimum_minutes: float = 0):
     lines = odds.get_player_lines(player, league)
     result = predictor(player, market_lines=lines) if league == "NBA" else predictor(player)
     result["lines"] = lines
+    team_abbr = result.get("team") if league == "NBA" else result.get("team_abbr")
+    if team_abbr:
+        try:
+            from team_ratings import rating_fields
+            display = rating_fields(league, team_abbr)
+            if display:
+                result.update(display)
+        except Exception:
+            logger.exception("Display ratings unavailable for %s", player)
     injury = injuries.get_player_injury(result["player"], league)
     result["injury"] = injury
     p = finder(result["player"])
+    if p:
+        result["player_id"] = p["id"]
+        result["headshot_url"] = (f"https://cdn.nba.com/headshots/nba/latest/1040x760/{p['id']}.png"
+                                  if league == "NBA" else f"https://a.espncdn.com/i/headshots/wnba/players/full/{p['id']}.png")
     from copy import deepcopy
     base_predictions = deepcopy(result["predictions"])
     try:
@@ -638,6 +651,17 @@ def _seed_all(league: str):
 def seed_accuracy(request: Request, background_tasks: BackgroundTasks, league: str = Query(default="WNBA")):
     background_tasks.add_task(_seed_all, league)
     return {"status": "started", "league": league}
+
+
+@app.get("/team_ratings")
+def current_team_ratings(team: str, league: str = "NBA"):
+    if league not in ("NBA", "WNBA"):
+        raise HTTPException(status_code=422, detail="Choose NBA or WNBA")
+    from team_ratings import rating_fields
+    result = rating_fields(league, team)
+    if result is None:
+        raise HTTPException(status_code=503, detail="Current team ratings are temporarily unavailable")
+    return result
 
 
 @app.get("/team_preview")

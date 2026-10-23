@@ -110,6 +110,7 @@ def fetch_wnba_team_stats() -> dict:
         league_id_nullable="10",
         measure_type_detailed_defense="Advanced",
         per_mode_detailed="PerGame",
+        timeout=10,
     ).get_data_frames()[0]
 
     if df.empty:
@@ -555,6 +556,10 @@ def predict(player_name: str) -> dict:
         "team_abbr":     player.get("team_abbr", ""),
         "team_off_rank": player_team_info.get("off_rank"),
         "team_def_rank": player_team_info.get("def_rank"),
+        "team_off_rating": player_team_info.get("off_rtg"),
+        "team_def_rating": player_team_info.get("def_rtg"),
+        "ratings_season": _current_wnba_season(),
+        "ratings_team_count": 15,
         "league":        "WNBA",
         "season":        _current_wnba_season(),
         "games_used":    len(df),

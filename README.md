@@ -182,3 +182,10 @@ across the installed active-player directory using saved real box scores and
 missing optional matchup data. Results go to
 `backend/evaluation_results/nba_player_audit.json`. This checks forecast generation
 and JSON validity; it does not measure accuracy or audit live feed availability.
+
+Player-header offensive/defensive badges refresh from the official current-season
+team-ratings feed at most once per minute for each league, independently of the
+prediction-context cache. An open player page polls each minute and on returning
+to the app. The last successful ratings snapshot persists across restarts. A
+failed refresh preserves the original source timestamp, and the UI labels the
+saved ratings rather than treating them as fresh. Hover shows the update time.
