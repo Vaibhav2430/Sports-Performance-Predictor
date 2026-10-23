@@ -5,6 +5,7 @@ import math
 from pathlib import Path
 import threading
 import time
+import database
 
 PATH = Path(__file__).parent / 'data_cache' / 'nba' / 'display_ratings.json'
 _cache = None
@@ -24,7 +25,8 @@ def _ratings(league):
         cache = _cache if league == 'NBA' else _wnba_cache
         if cache is None:
             try:
-                saved = json.loads(path.read_text())
+                saved = database.read_document('ratings-' + league) if database.enabled() else json.loads(path.read_text())
+                saved = saved or {}
                 if saved.get('season') == season:
                     cache = saved
             except (OSError, ValueError, KeyError):
@@ -44,10 +46,13 @@ def _ratings(league):
                     raise ValueError('No current-season team ratings available')
                 cache = {'schema_version': 3, 'season': season, 'fallback': False,
                          'team_count': len(stats), 'teams': stats, 'updated_at': time.time()}
-                path.parent.mkdir(parents=True, exist_ok=True)
-                temp = path.with_suffix('.tmp')
-                temp.write_text(json.dumps(cache, allow_nan=False))
-                temp.replace(path)
+                if database.enabled():
+                    database.save_document('ratings-' + league, cache)
+                else:
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    temp = path.with_suffix('.tmp')
+                    temp.write_text(json.dumps(cache, allow_nan=False))
+                    temp.replace(path)
             except Exception:
                 # Keep the source timestamp intact when the feed fails.
                 pass

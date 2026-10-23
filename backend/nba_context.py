@@ -5,6 +5,7 @@ from pathlib import Path
 import threading
 import time
 import pandas as pd
+import database
 
 PATH = Path(__file__).parent / 'data_cache' / 'nba' / 'context.json'
 _context = None
@@ -25,9 +26,12 @@ def _refresh():
         context = {'season': model.CURRENT_SEASON, 'updated_at': time.time(), 'team_stats': stats,
                    'timeseries': timeseries, 'positions': positions, 'pos_def': defense}
         payload = {**context, 'timeseries': {k: json.loads(v.to_json(orient='records', date_format='iso')) for k,v in timeseries.items()}}
-        PATH.parent.mkdir(parents=True, exist_ok=True)
-        PATH.with_suffix('.tmp').write_text(json.dumps(payload, allow_nan=False))
-        PATH.with_suffix('.tmp').replace(PATH)
+        if database.enabled():
+            database.save_document('nba-context', payload)
+        else:
+            PATH.parent.mkdir(parents=True, exist_ok=True)
+            PATH.with_suffix('.tmp').write_text(json.dumps(payload, allow_nan=False))
+            PATH.with_suffix('.tmp').replace(PATH)
         with _lock:
             _context = context
     except Exception:
@@ -44,7 +48,8 @@ def get_context():
     with _lock:
         if _context is None:
             try:
-                payload = json.loads(PATH.read_text())
+                payload = database.read_document('nba-context') if database.enabled() else json.loads(PATH.read_text())
+                payload = payload or {}
                 if payload['season'] != model.CURRENT_SEASON:
                     raise ValueError('Different season')
                 for key, rows in payload['timeseries'].items():

@@ -3,6 +3,7 @@ import json
 import os
 import unicodedata
 import requests
+import database
 
 CACHE_TTL = 1800  # 30 minutes
 
@@ -14,6 +15,8 @@ HISTORY_STALE_DAYS = 30  # drop entries untouched this long
 
 
 def _load_history() -> dict:
+    if database.enabled():
+        return database.read_document('injury-history') or {}
     if not os.path.exists(HISTORY_FILE):
         return {}
     try:
@@ -24,6 +27,9 @@ def _load_history() -> dict:
 
 
 def _save_history(history: dict) -> None:
+    if database.enabled():
+        database.save_document('injury-history', history)
+        return
     try:
         with open(HISTORY_FILE, "w") as f:
             json.dump(history, f, indent=2)
@@ -35,7 +41,13 @@ def _update_history(league: str, current: dict) -> None:
     """Track Out -> returned transitions per player so we can tell when a
     teammate who was recently Out has come back (see get_recently_returned_players).
     """
-    history = _load_history()
+    if database.enabled():
+        database.update_document('injury-history', lambda history: _merge_history(history, league, current))
+    else:
+        _save_history(_merge_history(_load_history(), league, current))
+
+
+def _merge_history(history, league, current):
     lg_hist = history.setdefault(league, {})
     now = time.time()
 
@@ -62,7 +74,7 @@ def _update_history(league: str, current: dict) -> None:
             del lg_hist[name]
 
     history[league] = lg_hist
-    _save_history(history)
+    return history
 
 
 def get_recently_returned_players(team_abbr: str, league: str, window_days: float = 5) -> list:

@@ -2,6 +2,7 @@ import json
 import math
 import os
 import threading
+import database
 from datetime import date, datetime, timezone
 
 LOG_FILE = os.path.join(os.path.dirname(__file__), "predictions_log.json")
@@ -13,6 +14,8 @@ lock = threading.RLock()
 
 
 def _load() -> list:
+    if database.enabled():
+        return database.read_predictions()
     if not os.path.exists(LOG_FILE):
         return []
     try:
@@ -23,6 +26,9 @@ def _load() -> list:
 
 
 def _save(log: list):
+    if database.enabled():
+        database.save_predictions(log)
+        return
     with open(LOG_FILE, "w") as f:
         json.dump(log, f, indent=2)
 
@@ -39,7 +45,7 @@ def log_prediction(player: str, player_id, league: str, lines: dict, predictions
         return
     game_date = game_date or str(date.today())
     with lock:
-        log = _load()
+        log = [] if database.enabled() else _load()
         # Skip duplicate unresolved entry for same player + game date
         if any(e["player"] == player and e["date"] == game_date and not e["resolved"] and has_valid_predictions(e) for e in log):
             return
@@ -63,6 +69,9 @@ def log_prediction(player: str, player_id, league: str, lines: dict, predictions
         }
         if not has_valid_predictions(entry):
             raise ValueError("Cannot save non-finite predictions")
+        if database.enabled():
+            database.insert_prediction(entry)
+            return
         invalid = next((i for i, e in enumerate(log)
                         if e["player"] == player and e["date"] == game_date
                         and not e["resolved"] and not has_valid_predictions(e)), None)

@@ -3,9 +3,9 @@ import unicodedata
 import time
 import requests
 from datetime import datetime
-from difflib import get_close_matches
 from zoneinfo import ZoneInfo
 from dotenv import load_dotenv
+import api_usage
 
 load_dotenv()
 
@@ -28,7 +28,8 @@ _cache:       dict = {}
 _cache_time:  dict = {}
 _matchups: dict = {}
 _game_dates:  dict = {}   # {league: {player_name: "YYYY-MM-DD"}}
-CACHE_TTL = 1800  # 30 minutes
+CACHE_TTL = api_usage.setting('ODDS_CACHE_TTL_SECONDS', 21600)  # six-hour free-plan cache
+_line_times: dict = {}
 
 
 def _commence_time_to_game_date(commence_time: str) -> str | None:
@@ -46,23 +47,29 @@ def _normalize(name: str) -> str:
     return " ".join(name.casefold().replace(".", "").replace("'", "").replace("’", "").replace("-", " ").split())
 
 
-def fetch_lines(league: str) -> dict:
+def _paid_get(url, *, params, timeout):
+    api_usage.reserve_odds_request(params.get("markets"))
+    response = requests.get(url, params=params, timeout=timeout)
+    used = response.headers.get('x-requests-used')
+    if isinstance(used, str) and used.isdigit() and len(used) < 12:
+        api_usage.store().observe_provider_usage(int(used))
+    return response
+
+
+def _download_lines(league: str) -> dict:
     """Fetch and cache player prop lines for the given league.
 
     Returns {player_name: {PTS: float, AST: float, REB: float}}.
     """
     now = time.time()
     key = league.upper()
-    if key in _cache and now - _cache_time.get(key, 0) < CACHE_TTL:
-        return _cache[key]
-
     sport = SPORTS.get(key)
     if not sport:
         return {}
 
     # Get today's events
     try:
-        events_resp = requests.get(
+        events_resp = _paid_get(
             f"{BASE_URL}/sports/{sport}/events",
             params={"apiKey": API_KEY},
             timeout=10,
@@ -70,19 +77,26 @@ def fetch_lines(league: str) -> dict:
         events_resp.raise_for_status()
         events = events_resp.json()
     except Exception:
-        return _cache.get(key, {})
+        raise
 
-    result:     dict = {}
-    game_dates: dict = {}
-    matchups = {}
+    # Retain already-saved upcoming lines if a refresh only fits part of the
+    # free-plan budget. Each player's own observation timestamp is preserved.
+    result = {p: dict(lines) for p, lines in _cache.get(key, {}).items()}
+    game_dates = dict(_game_dates.get(key, {}))
+    matchups = dict(_matchups.get(key, {}))
+    line_times = dict(_line_times.get(key, {}))
+    limited = False
 
-    for event in events:
+    today = datetime.now(GAME_DATE_TZ).date().isoformat()
+    for event in sorted(events, key=lambda event: event.get('commence_time', '')):
         event_id = event.get("id")
         if not event_id:
             continue
         game_date = _commence_time_to_game_date(event.get("commence_time"))
+        if game_date != today:
+            continue
         try:
-            odds_resp = requests.get(
+            odds_resp = _paid_get(
                 f"{BASE_URL}/sports/{sport}/events/{event_id}/odds",
                 params={
                     "apiKey":      API_KEY,
@@ -95,9 +109,13 @@ def fetch_lines(league: str) -> dict:
             if odds_resp.status_code != 200:
                 continue
             data = odds_resp.json()
+        except (api_usage.UsageLimitExceeded, api_usage.UsageStoreUnavailable):
+            limited = True
+            break
         except Exception:
             continue
 
+        refreshed_players = set()
         for bookmaker in data.get("bookmakers", []):
             for market in bookmaker.get("markets", []):
                 stat = MARKET_MAP.get(market.get("key", ""))
@@ -110,19 +128,72 @@ def fetch_lines(league: str) -> dict:
                     player = outcome.get("description", "")
                     line   = outcome.get("point")
                     if player and line is not None and player not in seen:
-                        if player not in result:
+                        if player not in refreshed_players:
                             result[player] = {}
+                            refreshed_players.add(player)
                         result[player][stat] = float(line)
+                        line_times[player] = time.time()
                         matchups[player] = {"home_team": event.get("home_team"), "away_team": event.get("away_team"), "date": game_date}
                         seen.add(player)
                         if game_date:
                             game_dates[player] = game_date
 
-    _cache[key]       = result
-    _cache_time[key]  = now
-    _game_dates[key]  = game_dates
-    _matchups[key] = matchups
-    return result
+    return {"lines": result, "dates": game_dates, "matchups": matchups, "line_times": line_times,
+            "next_refresh": now + (3600 if limited else CACHE_TTL)}
+
+
+def _activate(key, snapshot):
+    today = datetime.now(GAME_DATE_TZ).date().isoformat()
+    dates = snapshot.get('dates', {})
+    valid = {p: lines for p, lines in snapshot.get('lines', {}).items() if dates.get(p, '') >= today}
+    _cache[key] = valid
+    _game_dates[key] = {p: dates[p] for p in valid}
+    _matchups[key] = {p: value for p, value in snapshot.get('matchups', {}).items() if p in valid}
+    _line_times[key] = {p: value for p, value in snapshot.get('line_times', {}).items() if p in valid}
+    _cache_time[key] = snapshot.get('next_refresh', 0)
+    return valid
+
+
+def fetch_lines(league: str) -> dict:
+    key = league.upper()
+    if key not in SPORTS:
+        return {}
+    try:
+        storage = api_usage.store()
+        snapshot = storage.snapshot('odds-lines-' + key)
+        if snapshot:
+            _activate(key, snapshot)
+            if time.time() < snapshot.get('next_refresh', 0):
+                return _cache[key]
+        try:
+            reservation = storage.acquire(resource='odds-refresh-' + key, capacity=1)
+        except api_usage.UsageLimitExceeded:
+            return _cache.get(key, {})
+        with reservation:
+            # A different worker may have finished between the read and lease.
+            snapshot = storage.snapshot('odds-lines-' + key)
+            if snapshot:
+                _activate(key, snapshot)
+                if time.time() < snapshot.get('next_refresh', 0):
+                    return _cache[key]
+            try:
+                snapshot = _download_lines(key)
+            except Exception:
+                # Share the retry delay too, so repeated searches cannot cause
+                # a storm of failed upstream requests during an outage/quota block.
+                snapshot = dict(snapshot or {})
+                snapshot['next_refresh'] = time.time() + 300
+            storage.save_snapshot('odds-lines-' + key, snapshot)
+            return _activate(key, snapshot)
+    except Exception:
+        return _cache.get(key, {})
+
+
+def get_line_metadata(player_name: str, league: str) -> dict:
+    league = league.upper()
+    key = _resolve_player_key(player_name, _cache.get(league, {}))
+    observed = _line_times.get(league, {}).get(key)
+    return {"lines_last_updated": datetime.fromtimestamp(observed, GAME_DATE_TZ).isoformat() if observed else None}
 
 
 def _resolve_player_key(player_name: str, all_lines: dict) -> str | None:

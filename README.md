@@ -189,3 +189,113 @@ prediction-context cache. An open player page polls each minute and on returning
 to the app. The last successful ratings snapshot persists across restarts. A
 failed refresh preserves the original source timestamp, and the UI labels the
 saved ratings rather than treating them as fresh. Hover shows the update time.
+
+## Protecting expensive API operations
+
+`POST /accuracy/seed` requires an `Authorization: Bearer <token>` header matching
+`ADMIN_API_TOKEN`. Admin operations are disabled (503) when this backend-only
+secret is unset or shorter than 32 characters. Invalid/missing credentials return
+401; tokens in query strings are not accepted. Generate a cryptographically
+random token and put it in the hosting provider's backend secrets or local `.env`.
+Never put it in a `VITE_` variable, browser code, a public URL, or source control.
+Send admin requests from a trusted server/terminal over HTTPS in production.
+
+Shared usage protection uses PostgreSQL transactions when `STORAGE_BACKEND=postgres`,
+including cross-host quotas and expiring job leases. With `STORAGE_BACKEND=local`,
+it uses SQLite transactions rather than per-process counters.
+Set `API_USAGE_DB` to an absolute path on a persistent **local** volume, shared
+by every worker of the **same backend host**. It is not a distributed limiter:
+do not deploy independent replicas, give each worker its own usage database, or
+put this SQLite file on a network filesystem. A multi-host deployment requires
+a distributed backend such as the Supabase PostgreSQL mode below. Do not delete/reset the database to bypass
+limits. Database errors fail closed (503) for expensive operations.
+
+Defaults (all configurable in `backend/.env.example`):
+
+| Operation | Shared limit |
+| --- | --- |
+| Player forecasts, both leagues combined | 10/minute per IP, 60/minute globally, 600/hour globally |
+| Concurrent player forecasts, including scheduled ones | 2 |
+| Bulk runs requested by admins | 2/hour, one bulk job at a time |
+| Automatic bulk seeding | Once/hour per league, shared across workers |
+| Matchup, schedule, roster-search, rating requests | 30/minute per IP, 120/minute globally, 4 concurrent |
+| Odds API HTTP calls, including scheduled ones | 10/minute, 40/day |
+| Conservatively reserved odds credits, both leagues combined | 15/day, 500/calendar month |
+| DraftKings line cache | 6 hours, shared across workers and restarts |
+
+Limits use fixed UTC time windows; they can admit a burst across a window
+boundary. They persist across backend restarts. Job leases renew while work runs
+and expire after a crashed worker. A throttled API returns 429 with `Retry-After`.
+Configure trusted proxy forwarding on the host so rate limiting sees real client
+IPs; never blindly trust client-supplied forwarding headers.
+
+The paid API budget is checked **before** network calls. Event lists cost no
+credits; each event-odds request reserves up to three (one per requested market,
+one region). The free plan's 500-credit limit resets on the first of each month
+at UTC midnight. Responses' `x-requests-used` headers raise the monthly ledger
+to include earlier account usage; they never reduce local reservations. These
+reservations are conservative estimates, not the provider's billing ledger.
+Monitor remaining provider credits, especially if other apps share the key.
+
+Only today's events are fetched for props, in game-time order. The free budget
+cannot cover continuously refreshed lines for every game: up to five complete
+three-market event requests fit the daily cap, including repeated refreshes.
+Saved upcoming lines remain available when refreshes are blocked, and the UI
+shows when each player's lines were obtained. Yesterday's lines are removed.
+Schedules and team-rating refreshes are independent of this six-hour cache.
+Failed refreshes share a retry delay so searches do not hammer the provider.
+If a bulk run exhausts a budget, remaining
+players are deferred to the next scheduled run. Read-only accuracy/leaderboard
+requests no longer trigger grading jobs; the existing scheduled worker handles
+shared, throttled box-score grading instead.
+
+## Supabase storage
+
+The Python backend connects to Supabase PostgreSQL over TLS using a private
+`DATABASE_URL`. Use the Session pooler URI (port 5432); percent-encode the password.
+Keep this setting in backend secrets, never in frontend variables or Git.
+`STORAGE_BACKEND=local` is the default. A connection string alone does not enable
+database storage.
+
+For a first migration, stop all local backend workers, install the backend
+requirements, then run from `backend`:
+
+```sh
+../.venv/bin/python migrate_storage.py --apply
+```
+
+The importer creates the private `courtcast` schema, backs up the local prediction
+log, saved reports/history, and SQLite usage database under
+`backend/data_cache/migration_backups`, then copies records without deleting local
+sources. It imports original forecasts and actuals, the NBA accuracy backtest,
+injury history, rating/context snapshots, cached NBA box scores/player directory,
+unexpired quota counters and saved betting lines. Repeated imports do not overwrite
+existing database forecasts, grading, or documents, or lower consumed quotas.
+All source forecast identities and the live accuracy totals are verified before
+the importer reports success. Leases are not migrated: stop old workers first.
+
+After verification, set `STORAGE_BACKEND=postgres` in backend settings and restart.
+All deployed backend instances must use the same database. Requests fail closed
+when the database is unavailable rather than silently switching to local files.
+The first valid saved forecast for a player/game is retained; grading adds results
+without changing that original prediction or dropping other players' records.
+
+Database tables have RLS enabled and no grants for browser/API roles. They are in
+the `courtcast` schema, which must **not** be added to Supabase's exposed schemas.
+In Supabase's Table Editor, select `courtcast` to inspect them. The existing frontend
+continues calling the Python API; it does not need Supabase keys. Account/login
+features are not required for this setup. Model code and rebuildable in-memory
+caches remain in the backend application.
+
+Keep backups of the hosted database after cutover. The local migration snapshot
+is a point-in-time backup and will not contain predictions saved later. Returning
+to local mode without exporting newer records would hide those newer predictions.
+
+Run optional live persistence tests with
+`COURTCAST_INTEGRATION_TESTS=1 ../.venv/bin/python -m unittest test_postgres_storage -v`
+from `backend`. Tests create and remove a disposable private schema, leaving the
+production `courtcast` records untouched.
+
+Run the regular offline suite with `STORAGE_BACKEND=local .venv/bin/python -m
+unittest discover -s backend -p 'test_*.py'` from the repository root. The explicit
+local setting prevents tests from using a real database configured in `.env`.

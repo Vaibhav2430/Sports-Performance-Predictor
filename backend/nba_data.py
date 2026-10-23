@@ -3,6 +3,8 @@ from datetime import datetime, timezone
 import threading
 import time
 from pathlib import Path
+from io import StringIO
+import database
 import pandas as pd
 from nba_api.stats.endpoints import playergamelogs
 
@@ -27,8 +29,12 @@ def season_games(season):
             return _frames[season][1].copy()
         CACHE.mkdir(parents=True, exist_ok=True)
         path = CACHE / f'{season}.csv'
-        if path.exists() and now - path.stat().st_mtime < TTL:
-            frame = pd.read_csv(path, dtype={'GAME_ID': str})
+        saved = database.read_document('nba-games-' + season) if database.enabled() else None
+        updated_at = saved['updated_at'] if saved else (path.stat().st_mtime if path.exists() else 0)
+        def read_saved():
+            return pd.read_csv(StringIO(saved['csv']) if saved else path, dtype={'GAME_ID': str})
+        if updated_at and now - updated_at < TTL:
+            frame = read_saved()
             frame.attrs['history_source'] = 'cached'
         else:
             try:
@@ -36,16 +42,20 @@ def season_games(season):
                     season_type_nullable='Regular Season', timeout=15).get_data_frames()[0]
                 if not {'PLAYER_ID', 'GAME_ID', 'GAME_DATE', 'MIN', 'PTS', 'AST', 'REB', 'MATCHUP', 'WL'} <= set(frame):
                     raise ValueError('Incomplete NBA game log response')
-                frame.to_csv(path.with_suffix('.tmp'), index=False)
-                path.with_suffix('.tmp').replace(path)
+                updated_at = time.time()
+                if database.enabled():
+                    database.save_document('nba-games-' + season, {'csv': frame.to_csv(index=False), 'updated_at': updated_at})
+                else:
+                    frame.to_csv(path.with_suffix('.tmp'), index=False)
+                    path.with_suffix('.tmp').replace(path)
                 frame.attrs['history_source'] = 'live'
             except Exception as exc:
-                if not path.exists():
+                if not saved and not path.exists():
                     raise HistoryUnavailable('NBA box scores are temporarily unavailable. Please retry shortly.') from exc
-                frame = pd.read_csv(path, dtype={'GAME_ID': str})
+                frame = read_saved()
                 frame.attrs['history_source'] = 'stale_cache'
-        if path.exists():
-            frame.attrs['history_updated_at'] = datetime.fromtimestamp(path.stat().st_mtime, timezone.utc).isoformat()
+        if updated_at:
+            frame.attrs['history_updated_at'] = datetime.fromtimestamp(updated_at, timezone.utc).isoformat()
         # Some feeds include preseason even with a season-type filter.
         frame = frame[frame.GAME_ID.astype(str).str.zfill(10).str.startswith('002')].copy()
         _frames[season] = (now, frame)
@@ -80,14 +90,20 @@ def player_directory(season):
             return _directory
         CACHE.mkdir(parents=True, exist_ok=True)
         path = CACHE / f'players-{season}.csv'
+        saved = database.read_document('nba-players-' + season) if database.enabled() else None
         try:
-            if path.exists() and time.time() - path.stat().st_mtime < 86400:
+            if saved and time.time() - saved['updated_at'] < 86400:
+                frame = pd.read_csv(StringIO(saved['csv']))
+            elif not database.enabled() and path.exists() and time.time() - path.stat().st_mtime < 86400:
                 frame = pd.read_csv(path)
             else:
                 frame = commonallplayers.CommonAllPlayers(is_only_current_season=1, season=season, timeout=10).get_data_frames()[0]
-                frame.to_csv(path, index=False)
+                if database.enabled():
+                    database.save_document('nba-players-' + season, {'csv': frame.to_csv(index=False), 'updated_at': time.time()})
+                else:
+                    frame.to_csv(path, index=False)
         except Exception:
-            frame = pd.read_csv(path) if path.exists() else pd.DataFrame()
+            frame = pd.read_csv(StringIO(saved['csv'])) if saved else (pd.read_csv(path) if path.exists() else pd.DataFrame())
         _directory = [{'id': int(r.PERSON_ID), 'full_name': r.DISPLAY_FIRST_LAST, 'is_active': True}
                       for r in frame.itertuples()]
         _directory_until = time.time() + (86400 if _directory else 300)

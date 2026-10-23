@@ -2,9 +2,12 @@ import math
 import time
 import logging
 import threading
+import database
 import pandas as pd
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, HTTPException, Query, BackgroundTasks, Request, Body
+from fastapi import FastAPI, HTTPException, Query, BackgroundTasks, Request, Body, Depends
+from fastapi.responses import JSONResponse
+from typing import Literal
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
@@ -25,6 +28,8 @@ import injuries
 import team_context
 import chatbot
 from nba_data import NoHistory, HistoryUnavailable
+from admin_auth import require_admin
+import api_usage
 
 logger = logging.getLogger(__name__)
 
@@ -328,6 +333,10 @@ def _attach_p_over(result: dict) -> None:
 
 @asynccontextmanager
 async def lifespan(_app):
+    if database.enabled():
+        with database.connect() as connection:
+            connection.execute('SELECT entry_key FROM predictions LIMIT 1')
+            connection.execute('SELECT key FROM budgets LIMIT 1')
     stop = threading.Event()
     worker = threading.Thread(target=_prediction_worker, args=(stop,), daemon=True)
     worker.start()
@@ -342,6 +351,26 @@ app = FastAPI(title="NBA Stat Predictor API", lifespan=lifespan)
 limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+
+@app.exception_handler(database.DatabaseUnavailable)
+async def database_unavailable(_request, _exc):
+    return JSONResponse(status_code=503, content={"detail": "Saved data is temporarily unavailable. Please retry shortly."})
+
+@app.exception_handler(api_usage.UsageLimitExceeded)
+async def shared_usage_exceeded(_request, exc):
+    return JSONResponse(status_code=429, content={"detail": exc.detail}, headers={"Retry-After": str(exc.retry_after)})
+
+
+@app.exception_handler(api_usage.UsageStoreUnavailable)
+async def shared_usage_unavailable(_request, _exc):
+    return JSONResponse(status_code=503, content={"detail": "Usage protection is unavailable. Please retry shortly."}, headers={"Retry-After": "30"})
+
+
+def guard_enrichment(request: Request):
+    with api_usage.enrichment(get_remote_address(request)):
+        yield
+
 
 app.add_middleware(
     CORSMiddleware,
@@ -359,6 +388,7 @@ def _predict_and_record(player: str, league: str, minimum_minutes: float = 0):
     lines = odds.get_player_lines(player, league)
     result = predictor(player, market_lines=lines) if league == "NBA" else predictor(player)
     result["lines"] = lines
+    result.update(odds.get_line_metadata(player, league))
     team_abbr = result.get("team") if league == "NBA" else result.get("team_abbr")
     if team_abbr:
         try:
@@ -416,7 +446,10 @@ def _json_safe(value):
 @limiter.limit("20/minute")
 def predict_endpoint(request: Request, player: str = Query(..., description="Player full name")):
     try:
-        return _predict_and_record(player, "NBA")
+        with api_usage.prediction(get_remote_address(request)):
+            return _predict_and_record(player, "NBA")
+    except (api_usage.UsageLimitExceeded, api_usage.UsageStoreUnavailable, database.DatabaseUnavailable):
+        raise
     except NoHistory as e:
         raise HTTPException(status_code=422, detail=str(e))
     except HistoryUnavailable as e:
@@ -439,7 +472,7 @@ def search_endpoint(request: Request, q: str = Query(default="")):
     return matches[:15]
 
 
-@app.get("/wnba/search")
+@app.get("/wnba/search", dependencies=[Depends(guard_enrichment)])
 @limiter.limit("60/minute")
 def wnba_search(request: Request, q: str = Query(default="")):
     return wnba_model.search_players(q)
@@ -449,7 +482,10 @@ def wnba_search(request: Request, q: str = Query(default="")):
 @limiter.limit("20/minute")
 def wnba_predict(request: Request, player: str = Query(...)):
     try:
-        return _predict_and_record(player, "WNBA")
+        with api_usage.prediction(get_remote_address(request)):
+            return _predict_and_record(player, "WNBA")
+    except (api_usage.UsageLimitExceeded, api_usage.UsageStoreUnavailable, database.DatabaseUnavailable):
+        raise
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception:
@@ -457,7 +493,7 @@ def wnba_predict(request: Request, player: str = Query(...)):
         raise HTTPException(status_code=500, detail="Prediction failed")
 
 
-@app.get("/wnba/games/today")
+@app.get("/wnba/games/today", dependencies=[Depends(guard_enrichment)])
 @limiter.limit("30/minute")
 def wnba_games_today(request: Request):
     return wnba_model.games_today()
@@ -497,8 +533,14 @@ def _resolve_all():
     that this function's final save_log() would otherwise silently drop.
     """
     from datetime import date
-    with tracker.lock:
-        _resolve_all_locked()
+    try:
+        with api_usage.reserve_resolution():
+            with tracker.lock:
+                _resolve_all_locked()
+    except api_usage.UsageLimitExceeded:
+        return
+    except api_usage.UsageStoreUnavailable:
+        logger.warning("Box-score grading deferred while usage protection is unavailable")
 
 
 def _resolve_all_locked():
@@ -587,6 +629,11 @@ def _resolve_all_locked():
 def season_backtest():
     import json
     from pathlib import Path
+    if database.enabled():
+        report = database.read_document('nba-season-backtest')
+        if report is None:
+            raise HTTPException(status_code=404, detail="Season backtest has not been imported")
+        return report
     path = Path(__file__).parent / "evaluation_results" / "nba_season" / "report.json"
     if not path.exists():
         raise HTTPException(status_code=404, detail="Season backtest has not been run")
@@ -596,7 +643,6 @@ def season_backtest():
 @app.get("/accuracy")
 @limiter.limit("30/minute")
 def accuracy_endpoint(request: Request, background_tasks: BackgroundTasks, league: str = Query(default=None)):
-    background_tasks.add_task(_resolve_all)
     return tracker.compute_stats(tracker.load_log(), league=league)
 
 
@@ -610,7 +656,6 @@ def chat_leaderboard(
     min_picks: int = Query(default=5, ge=1, le=50),
 ):
     """Best / worst player hit rates over resolved predictions (chatbot Q2/Q3)."""
-    background_tasks.add_task(_resolve_all)
     return chatbot.leaderboard(tracker.load_log(), league=league, limit=limit, min_picks=min_picks)
 
 
@@ -625,7 +670,18 @@ def chat_reasoning(request: Request, payload: dict = Body(...), league: str = Qu
     return chatbot.build_reasoning(payload, league=league)
 
 
-def _seed_all(league: str):
+def _seed_all(league: str, reservation=None):
+    try:
+        reservation = reservation or api_usage.reserve_bulk(league)
+        with reservation:
+            _seed_all_players(league)
+    except api_usage.UsageLimitExceeded:
+        logger.info("Bulk %s predictions deferred by shared usage protection", league)
+    except api_usage.UsageStoreUnavailable:
+        logger.warning("Bulk predictions disabled while usage protection is unavailable")
+
+
+def _seed_all_players(league: str):
     from datetime import date
     all_lines = odds.fetch_lines(league)
     if not all_lines:
@@ -641,19 +697,29 @@ def _seed_all(league: str):
             game_date = odds.get_player_game_date(pp_name, league) or str(date.today())
             if (player_name, game_date) in logged_pairs:
                 continue
-            _predict_and_record(pp_name, league, minimum_minutes=15)
+            with api_usage.prediction():
+                _predict_and_record(pp_name, league, minimum_minutes=15)
+        except (api_usage.UsageLimitExceeded, api_usage.UsageStoreUnavailable):
+            logger.info("Bulk %s predictions paused at shared budget; remaining players will retry on the next scheduled run", league)
+            break
         except Exception:
             logger.exception("Prediction failed for %s player %s; will retry", league, pp_name)
 
 
 @app.post("/accuracy/seed")
 @limiter.limit("2/minute")
-def seed_accuracy(request: Request, background_tasks: BackgroundTasks, league: str = Query(default="WNBA")):
-    background_tasks.add_task(_seed_all, league)
+def seed_accuracy(request: Request, background_tasks: BackgroundTasks,
+                  league: Literal["NBA", "WNBA"] = Query(default="WNBA"), _admin=Depends(require_admin)):
+    reservation = api_usage.reserve_bulk(league, admin=True)
+    try:
+        background_tasks.add_task(_seed_all, league, reservation)
+    except Exception:
+        reservation.store.release(reservation.token)
+        raise
     return {"status": "started", "league": league}
 
 
-@app.get("/team_ratings")
+@app.get("/team_ratings", dependencies=[Depends(guard_enrichment)])
 def current_team_ratings(team: str, league: str = "NBA"):
     if league not in ("NBA", "WNBA"):
         raise HTTPException(status_code=422, detail="Choose NBA or WNBA")
@@ -664,7 +730,7 @@ def current_team_ratings(team: str, league: str = "NBA"):
     return result
 
 
-@app.get("/team_preview")
+@app.get("/team_preview", dependencies=[Depends(guard_enrichment)])
 @limiter.limit("30/minute")
 def team_preview(
     request: Request,
@@ -695,7 +761,7 @@ def team_preview(
         raise HTTPException(status_code=500, detail="Team preview failed")
 
 
-@app.get("/games/today")
+@app.get("/games/today", dependencies=[Depends(guard_enrichment)])
 @limiter.limit("30/minute")
 def games_today(request: Request):
     from schedule import nba_games_today

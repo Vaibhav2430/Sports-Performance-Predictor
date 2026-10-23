@@ -1095,3 +1095,5 @@ body { overflow: hidden; }
 .ratings-stale-note { font-size: .65rem; color: var(--muted); align-self: center; }
 
 .main.lineup-main { justify-content: flex-start; padding-top: 16px; }
+
+.line-cache-note { margin: -8px 0 12px; color: var(--muted); font-size: .72rem; }
