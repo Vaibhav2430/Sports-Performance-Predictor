@@ -1,24 +1,5 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import axios from 'axios'
-
-// Pacific fire times: 12:30 PM, 3:30 PM, 6:30 PM, 10:00 PM
-const FIRE_TIMES_PT = [[12, 30], [15, 30], [18, 30], [22, 0]]
-
-function msUntilNextFire() {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'America/Los_Angeles',
-    hour: '2-digit', minute: '2-digit', hour12: false,
-  }).formatToParts(new Date())
-  const h = parseInt(parts.find(p => p.type === 'hour').value)
-  const m = parseInt(parts.find(p => p.type === 'minute').value)
-  const nowMins = h * 60 + m
-  for (const [fh, fm] of FIRE_TIMES_PT) {
-    const fireMins = fh * 60 + fm
-    if (fireMins > nowMins) return (fireMins - nowMins) * 60 * 1000
-  }
-  // Past 10 PM — next fire is 12:30 PM tomorrow
-  return ((24 * 60 - nowMins) + (12 * 60 + 30)) * 60 * 1000
-}
 
 const STATS = [
   { key: 'PTS', label: 'Points',   color: '#17c3ff' },
@@ -35,45 +16,56 @@ function pctColor(pct) {
 
 export default function AccuracyCards({ league }) {
   const [stats, setStats] = useState(null)
-  const timer = useRef(null)
+  const [stale, setStale] = useState(false)
 
   useEffect(() => {
     let active = true
+    let pending = false
+    const controller = new AbortController()
     setStats(null)
-    async function fetchAndSchedule() {
+    setStale(false)
+    async function refresh() {
+      if (pending || document.visibilityState === 'hidden') return
+      pending = true
       try {
-        const { data } = await axios.get(league === 'NBA' ? '/accuracy/backtest' : `/accuracy?league=${league}`)
-        if (active) setStats(league === 'NBA' ? {
-          total: data.player_games,
-          note: `${data.season} historical backtest · ${data.completed_games} games · ${data.date_start} through ${data.date_end}. ${data.note}`,
-          by_stat: Object.fromEntries(Object.entries(data.by_stat).map(([key, stat]) => [key, {
-            pct: stat.within_margin_pct, correct: stat.within_margin, total: stat.n,
-            margin: stat.margin, mae: stat.mae,
-          }])),
-        } : data)
+        const { data } = await axios.get('/accuracy', {
+          params: { league, metric: league === 'NBA' ? 'within_margin' : 'over_under' },
+          signal: controller.signal, timeout: 15000,
+        })
+        if (active) { setStats(data); setStale(false) }
       } catch {
-        if (active) setStats(null)
+        if (active) setStale(true)
+      } finally {
+        pending = false
       }
-      if (active) timer.current = setTimeout(fetchAndSchedule, msUntilNextFire())
     }
-    fetchAndSchedule()
-    return () => { active = false; clearTimeout(timer.current) }
+    refresh()
+    const timer = setInterval(refresh, 60000)
+    window.addEventListener('focus', refresh)
+    document.addEventListener('visibilitychange', refresh)
+    return () => {
+      active = false
+      controller.abort()
+      clearInterval(timer)
+      window.removeEventListener('focus', refresh)
+      document.removeEventListener('visibilitychange', refresh)
+    }
   }, [league])
 
   const hasData = stats && stats.total > 0
 
   return (
     <div className="accuracy-section">
-      <div className="accuracy-title">{league === 'NBA' ? 'Historical backtest' : 'O/U Accuracy'}</div>
+      <div className="accuracy-title">{league === 'NBA' ? 'Season accuracy' : 'O/U Accuracy'}</div>
 
       <div className="accuracy-cards">
         {STATS.map(({ key, label, color }) => {
           const s = hasData ? stats.by_stat[key] : null
           const hasStatData = s && s.total > 0
           return (
-            <div key={key} className="accuracy-card" title={league === 'NBA' && hasStatData
-              ? `${stats.note} ${label}: ${s.correct}/${s.total} within ±${s.margin}; average error ${s.mae}.`
-              : `${label} over/under accuracy`}>
+            <div key={key} className="accuracy-card" title={(league === 'NBA' && hasStatData
+              ? `${label}: ${s.correct}/${s.total} within ±${s.margin}. Historical baseline: ${s.baseline_correct}/${s.baseline_total} through ${stats.baseline_date_end ?? 'none'}; new saved results: ${s.live_correct}/${s.live_total}. ${stats.note}`
+              : `${label} over/under accuracy`) + (stale ? ' Showing saved results; refresh temporarily unavailable.' : '')}>
               <div className="accuracy-card-label" style={{ color }}>{label}</div>
               <div
                 className="accuracy-card-pct"

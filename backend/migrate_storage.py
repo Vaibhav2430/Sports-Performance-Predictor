@@ -19,6 +19,7 @@ def migrate():
     backup = ROOT / 'data_cache' / 'migration_backups' / datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%fZ')
     backup.mkdir(parents=True)
     sources = {'injury-history': ROOT / 'injury_history.json',
+               'nba-accuracy-baseline': ROOT / 'data_cache/nba/accuracy_baseline.json',
                'nba-season-backtest': ROOT / 'evaluation_results/nba_season/report.json',
                'ratings-NBA': ROOT / 'data_cache/nba/display_ratings.json',
                'ratings-WNBA': ROOT / 'data_cache/nba/wnba_display_ratings.json',

@@ -3,6 +3,7 @@ import time
 import logging
 import threading
 import database
+import season_accuracy
 import pandas as pd
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Query, BackgroundTasks, Request, Body, Depends
@@ -44,11 +45,11 @@ def _seed_if_needed():
 
 def _prediction_worker(stop):
     while not stop.is_set():
-        _seed_if_needed()
         try:
             _resolve_all()
         except Exception:
             logger.exception("Automatic box-score grading failed; will retry")
+        _seed_if_needed()
         if stop.wait(3600):
             break
 
@@ -544,9 +545,10 @@ def _resolve_all():
 
 
 def _resolve_all_locked():
-    from datetime import date
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
     log = tracker.load_log()
-    today = str(date.today())
+    today = datetime.now(ZoneInfo('America/New_York')).date().isoformat()
     changed = False
 
     for entry in log:
@@ -573,20 +575,10 @@ def _resolve_all_locked():
             pred_date = pd.Timestamp(entry["date"])
             same_day = df[df["GAME_DATE"].dt.date == pred_date.date()]
             if same_day.empty:
-                # Fallback for entries logged before dates were tied to the
-                # scheduled game (a UTC/Eastern boundary could shift the
-                # logged date by a day) — take the closest game within 1 day.
-                diffs  = (df["GAME_DATE"] - pred_date).abs()
-                within = diffs <= pd.Timedelta(days=1)
-                if not within.any():
-                    # No game logged anywhere near this date — the player
-                    # didn't play (DNP / rest / injury). Exclude rather than
-                    # leave it pending forever, since there will never be a
-                    # game to resolve it against.
-                    tracker.mark_excluded(entry)
-                    changed = True
-                    continue
-                same_day = df.loc[[diffs[within].idxmin()]]
+                # A stale feed, postponed game, or DNP is not a box score.
+                # Retry rather than grade a different date or permanently
+                # exclude a player while the result feed is still catching up.
+                continue
 
             game_idx = same_day.index[0]
             game = same_day.iloc[0]
@@ -615,7 +607,8 @@ def _resolve_all_locked():
                 for stat in entry.get("lines", {})
                 if stat in game.index
             }
-            if actual:
+            expected = set(entry.get('predicted', {})) & {'PTS', 'AST', 'REB'}
+            if expected and expected <= actual.keys() and all(math.isfinite(actual[stat]) for stat in expected):
                 tracker.mark_resolved(entry, actual)
                 changed = True
         except Exception:
@@ -642,8 +635,15 @@ def season_backtest():
 
 @app.get("/accuracy")
 @limiter.limit("30/minute")
-def accuracy_endpoint(request: Request, background_tasks: BackgroundTasks, league: str = Query(default=None)):
-    return tracker.compute_stats(tracker.load_log(), league=league)
+def accuracy_endpoint(request: Request, background_tasks: BackgroundTasks, league: str = Query(default=None),
+                      metric: Literal['over_under', 'within_margin'] = 'over_under'):
+    log = tracker.load_log()
+    if metric == 'within_margin':
+        if league != 'NBA':
+            raise HTTPException(status_code=422, detail='Combined season accuracy is available for NBA')
+        from model import CURRENT_SEASON
+        return season_accuracy.combined(log, season_accuracy.load_baseline(), CURRENT_SEASON)
+    return tracker.compute_stats(log, league=league)
 
 
 @app.get("/chat/leaderboard")

@@ -159,13 +159,34 @@ replay of the live model. It does not alter the live prediction log.
 
 The backtest report records average error and the fraction within ±5 points,
 ±2 assists, and ±3 rebounds. These are not betting win rates. The top NBA accuracy
-cards retain these season backtest results; WNBA cards show saved over/under results. Outputs: `backend/evaluation_results/nba_season/report.json`
+cards start with this frozen baseline and add newly graded live forecasts after
+its last included date; WNBA cards show saved over/under results. Outputs: `backend/evaluation_results/nba_season/report.json`
 and `predictions.csv`, including actuals, predictions, and training cutoff dates.
 
 Both leagues share prediction adjustments, injury checks, forecast logging,
-automatic seeding, and hourly box-score grading. The header uses the same card layout for each league. NBA shows season backtest
-percentages and counts; WNBA shows over/under percentages and counts. Hover for
-the metric definition. Backtest results remain separate from live forecast logs.
+automatic seeding, and hourly box-score grading. Grading runs before new seeding
+on startup and each hourly pass, using the Eastern game day. A prediction is
+graded only against its exact game date; missing or incomplete box scores stay
+pending and retry instead of being matched to an adjacent day. Only completed
+past game days are graded, so the previous day's available results are included
+on the next hourly pass while the backend runs.
+
+The NBA header requests `/accuracy?league=NBA&metric=within_margin`. It adds raw
+success/sample counts from new saved NBA forecasts to `nba-accuracy-baseline`,
+a frozen Supabase document (local copy: `backend/data_cache/nba/accuracy_baseline.json`).
+All dates through the baseline's `date_end` are excluded from live additions to
+avoid double counting. Each new player/game contributes at most once, excluded
+records never count, and unfinished forecasts remain pending. The baseline and
+live samples must use the same ±5/±2/±3 margins. Counts are summed before calculating
+percentages; percentages are not averaged. The response identifies baseline and
+live counts separately, and limits additions to the matching NBA season.
+
+Both headers refresh each minute and on returning to the page. The NBA hover
+text identifies the historical baseline and new saved results; the visual layout
+is unchanged. `/accuracy/backtest` still returns the original reconstruction
+alone, while `/accuracy?league=NBA` retains the saved over/under metric used by
+leaderboards. The historical reconstruction remains separate from live forecast
+records: combined margin accuracy is not a pure live-model betting win rate.
 
 NBA predictions now share league-wide regular-season box-score snapshots across
 players. Live requests have a time limit and can use a labeled saved snapshot
