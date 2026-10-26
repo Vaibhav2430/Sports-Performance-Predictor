@@ -3,7 +3,7 @@
 Opt in with COURTCAST_INTEGRATION_TESTS=1 and a configured DATABASE_URL.
 """
 from concurrent.futures import ThreadPoolExecutor
-from contextlib import contextmanager
+from contextlib import contextmanager, nullcontext
 import copy
 import os
 from pathlib import Path
@@ -13,6 +13,7 @@ import uuid
 import tempfile
 from cryptography.fernet import Fernet
 import backups
+import monitoring
 
 import api_usage
 import database
@@ -107,6 +108,27 @@ class PostgresIntegrationTests(unittest.TestCase):
                 return 0
         with ThreadPoolExecutor(max_workers=4) as pool:
             self.assertEqual(sum(pool.map(attempt, range(8))), 2)
+
+    def test_monitoring_updates_are_atomic_and_read_only_checks_detect_errors(self):
+        storage=api_usage.PostgresUsage()
+        def increment(_):
+            storage.update_snapshot('monitor-test-counter',lambda old:{'n':old.get('n',0)+1})
+        with ThreadPoolExecutor(max_workers=4) as pool:
+            list(pool.map(increment,range(8)))
+        self.assertEqual(storage.snapshot('monitor-test-counter'),{'n':8})
+        with patch.object(api_usage,'store',return_value=storage):
+            try:
+                with monitoring.job('grading'):
+                    raise RuntimeError('private connection text')
+            except RuntimeError:
+                pass
+            with database.connect() as connection:
+                connection.execute('SET TRANSACTION READ ONLY')
+                with patch.object(storage,'connect',return_value=nullcontext(api_usage._PostgresConnection(connection))):
+                    report=monitoring.status(cached=False)
+            self.assertEqual(report['status'],'critical')
+            self.assertIn('job_failed_grading',{item['code'] for item in report['alerts']})
+            self.assertNotIn('private connection text',str(report))
 
     def test_lease_rejection_rolls_back_budget_and_releases_on_exit(self):
         storage = api_usage.PostgresUsage()

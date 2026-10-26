@@ -6,6 +6,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 from dotenv import load_dotenv
 import api_usage
+import monitoring
 
 load_dotenv()
 
@@ -50,6 +51,7 @@ def _normalize(name: str) -> str:
 def _paid_get(url, *, params, timeout):
     api_usage.reserve_odds_request(params.get("markets"))
     response = requests.get(url, params=params, timeout=timeout)
+    monitoring.observe_odds(response)
     used = response.headers.get('x-requests-used')
     if isinstance(used, str) and used.isdigit() and len(used) < 12:
         api_usage.store().observe_provider_usage(int(used))
@@ -86,6 +88,7 @@ def _download_lines(league: str) -> dict:
     matchups = dict(_matchups.get(key, {}))
     line_times = dict(_line_times.get(key, {}))
     limited = False
+    attempted, failed = 0, 0
 
     today = datetime.now(GAME_DATE_TZ).date().isoformat()
     for event in sorted(events, key=lambda event: event.get('commence_time', '')):
@@ -96,6 +99,7 @@ def _download_lines(league: str) -> dict:
         if game_date != today:
             continue
         try:
+            attempted += 1
             odds_resp = _paid_get(
                 f"{BASE_URL}/sports/{sport}/events/{event_id}/odds",
                 params={
@@ -107,12 +111,14 @@ def _download_lines(league: str) -> dict:
                 timeout=10,
             )
             if odds_resp.status_code != 200:
+                failed += 1
                 continue
             data = odds_resp.json()
         except (api_usage.UsageLimitExceeded, api_usage.UsageStoreUnavailable):
             limited = True
             break
         except Exception:
+            failed += 1
             continue
 
         refreshed_players = set()
@@ -139,7 +145,8 @@ def _download_lines(league: str) -> dict:
                             game_dates[player] = game_date
 
     return {"lines": result, "dates": game_dates, "matchups": matchups, "line_times": line_times,
-            "next_refresh": now + (3600 if limited else CACHE_TTL)}
+            "next_refresh": now + (3600 if limited else CACHE_TTL),
+            'monitor_counts': {'attempted': attempted, 'failed': failed, 'deferred': limited}}
 
 
 def _activate(key, snapshot):
@@ -177,7 +184,9 @@ def fetch_lines(league: str) -> dict:
                 if time.time() < snapshot.get('next_refresh', 0):
                     return _cache[key]
             try:
-                snapshot = _download_lines(key)
+                with monitoring.job('odds-' + key) as metrics:
+                    snapshot = _download_lines(key)
+                    metrics.update(snapshot.get('monitor_counts', {}))
             except Exception:
                 # Share the retry delay too, so repeated searches cannot cause
                 # a storm of failed upstream requests during an outage/quota block.

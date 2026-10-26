@@ -5,6 +5,7 @@ import threading
 import database
 import season_accuracy
 import backups
+import monitoring
 from web_config import allowed_origins
 import pandas as pd
 from contextlib import asynccontextmanager
@@ -47,11 +48,12 @@ def _seed_if_needed():
 
 def _prediction_worker(stop):
     while not stop.is_set():
-        try:
-            _resolve_all()
-        except Exception:
-            logger.exception("Automatic box-score grading failed; will retry")
-        _seed_if_needed()
+        with monitoring.job('scheduler'):
+            try:
+                _resolve_all()
+            except Exception:
+                logger.exception("Automatic box-score grading failed; will retry")
+            _seed_if_needed()
         if stop.wait(3600):
             break
 
@@ -358,6 +360,21 @@ app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 
+@app.get('/health')
+def health():
+    state = monitoring.status()
+    # A quota incident cannot be fixed by restarting the app. Reserve 503 for
+    # database unavailability, avoiding restart loops on hosting health checks.
+    code = 503 if any(item['code'] == 'monitor_storage_unavailable' for item in state['alerts']) else 200
+    # Public probes get no job details, quota counts, credentials, or tracebacks.
+    return JSONResponse(status_code=code, content={'status': state['status']})
+
+
+@app.get('/admin/monitoring', dependencies=[Depends(require_admin)])
+def monitoring_details():
+    return monitoring.status(cached=False)
+
+
 @app.exception_handler(database.DatabaseUnavailable)
 async def database_unavailable(_request, _exc):
     return JSONResponse(status_code=503, content={"detail": "Saved data is temporarily unavailable. Please retry shortly."})
@@ -541,12 +558,18 @@ def _resolve_all():
     from datetime import date
     try:
         with api_usage.reserve_resolution():
-            with tracker.lock:
-                _resolve_all_locked()
+            with monitoring.job('grading') as metrics:
+                with tracker.lock:
+                    result = _resolve_all_locked()
+                    if isinstance(result, dict):
+                        metrics.update(result)
     except api_usage.UsageLimitExceeded:
+        monitoring.deferred('grading')
         return
     except api_usage.UsageStoreUnavailable:
-        logger.warning("Box-score grading deferred while usage protection is unavailable")
+        # Admission failed before the grading context could record its state.
+        with monitoring.job('grading'):
+            raise
 
 
 def _resolve_all_locked():
@@ -555,22 +578,26 @@ def _resolve_all_locked():
     log = tracker.load_log()
     today = datetime.now(ZoneInfo('America/New_York')).date().isoformat()
     changed = False
+    metrics = {'attempted': 0, 'failed': 0, 'resolved': 0, 'excluded': 0}
 
     for entry in log:
         if entry.get("resolved"):
             continue
         if entry["date"] >= today:
             continue
+        metrics['attempted'] += 1
 
         try:
             if entry["league"] == "NBA":
                 p = nba_find_player(entry["player"])
                 if not p:
+                    metrics['failed'] += 1
                     continue
                 df = nba_fetch_game_log(p["id"])
             else:
                 p = wnba_model.find_player(entry["player"])
                 if not p:
+                    metrics['failed'] += 1
                     continue
                 df = wnba_model.fetch_game_log(p["id"])
 
@@ -597,6 +624,7 @@ def _resolve_all_locked():
                 if min_played < 5:
                     tracker.mark_excluded(entry)
                     changed = True
+                    metrics['excluded'] += 1
                     continue
             except Exception:
                 min_played = None
@@ -616,11 +644,18 @@ def _resolve_all_locked():
             if expected and expected <= actual.keys() and all(math.isfinite(actual[stat]) for stat in expected):
                 tracker.mark_resolved(entry, actual)
                 changed = True
+                metrics['resolved'] += 1
         except Exception:
+            metrics['failed'] += 1
             continue
 
     if changed:
         tracker.save_log(log)
+    pending = [entry['date'] for entry in log if not entry.get('resolved') and entry['date'] < today]
+    metrics['pending'] = len(pending)
+    if pending:
+        metrics['oldest_pending_date'] = min(pending)
+    return metrics
 
 
 @app.get("/accuracy/backtest")
@@ -679,36 +714,50 @@ def _seed_all(league: str, reservation=None):
     try:
         reservation = reservation or api_usage.reserve_bulk(league)
         with reservation:
-            _seed_all_players(league)
+            with monitoring.job('seed-' + league) as metrics:
+                result = _seed_all_players(league)
+                if isinstance(result, dict):
+                    metrics.update(result)
     except api_usage.UsageLimitExceeded:
+        monitoring.deferred('seed-' + league)
         logger.info("Bulk %s predictions deferred by shared usage protection", league)
     except api_usage.UsageStoreUnavailable:
-        logger.warning("Bulk predictions disabled while usage protection is unavailable")
+        with monitoring.job('seed-' + league):
+            raise
 
 
 def _seed_all_players(league: str):
     from datetime import date
     all_lines = odds.fetch_lines(league)
+    metrics = {'attempted': 0, 'generated': 0, 'failed': 0}
     if not all_lines:
-        return
+        return metrics
     log = tracker.load_log()
     logged_pairs = {(e["player"], e["date"]) for e in log if e.get("league") == league and tracker.has_valid_predictions(e)}
 
     finder = nba_find_player if league == "NBA" else wnba_model.find_player
     for pp_name in all_lines:
+        metrics['attempted'] += 1
         try:
             player = finder(pp_name)
             player_name = player["full_name"] if player else pp_name
             game_date = odds.get_player_game_date(pp_name, league) or str(date.today())
             if (player_name, game_date) in logged_pairs:
+                metrics['attempted'] -= 1
                 continue
             with api_usage.prediction():
                 _predict_and_record(pp_name, league, minimum_minutes=15)
-        except (api_usage.UsageLimitExceeded, api_usage.UsageStoreUnavailable):
+            metrics['generated'] += 1
+        except (api_usage.UsageLimitExceeded, api_usage.UsageStoreUnavailable) as exc:
             logger.info("Bulk %s predictions paused at shared budget; remaining players will retry on the next scheduled run", league)
+            metrics['deferred'] = True
+            if isinstance(exc, api_usage.UsageStoreUnavailable):
+                metrics['failed'] += 1
             break
         except Exception:
+            metrics['failed'] += 1
             logger.exception("Prediction failed for %s player %s; will retry", league, pp_name)
+    return metrics
 
 
 @app.post("/accuracy/seed")

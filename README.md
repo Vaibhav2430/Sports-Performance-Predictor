@@ -396,6 +396,60 @@ Both hosted addresses remain to be assigned when hosting is selected. The code
 is configured for this separation, but creating a hosting account or a public
 backend endpoint is a separate deployment step.
 
+## Job and API-credit monitoring
+
+The scheduler persists started/completed times, last successful run, failure
+counts, and outcome counters in private `courtcast.snapshots` records prefixed
+`monitor-`. Both league prediction jobs, box-score grading, the scheduler cycle,
+and odds refreshes are monitored. Individual player failures no longer disappear
+inside an otherwise "successful" bulk run: partial failures produce warnings,
+and total failures produce critical incidents. Busy admission and normal rate
+limits do not advance successful-job timestamps or erase a previous failure.
+A successful retry clears the failed-job state. Monitoring stores fixed reason
+codes, never exception messages, API URLs, passwords, player names, or keys.
+The monitor writes atomically across workers and does not prevent predictions
+from running if telemetry storage itself fails; the storage failure is logged.
+
+The Odds API's normal response headers (`x-requests-used` and
+`x-requests-remaining`) and `OUT_OF_USAGE_CREDITS` error code track provider quota.
+Existing shared local budgets are also inspected, including when the next
+three-market request cannot fit the remaining allowance. **No paid probes are
+sent by monitoring.** The daily allowance being used up is a warning; monthly
+exhaustion, rejected credentials, or failed jobs are critical. Low provider
+credits warn at `MONITOR_LOW_CREDITS=50`. Monthly/daily incidents expire with
+their UTC quota windows. Provider numbers are the last observed response, not
+an independently polled live balance.
+
+`GET /health` gives only the aggregate status. Database unavailability returns
+503; business incidents such as depleted credits retain HTTP 200 to avoid
+hosting restart loops that cannot fix the incident. Inspect its JSON status or
+use the dedicated watchdog for those alerts. Detailed job counters and incidents
+are at `GET /admin/monitoring`, protected by the same backend-only Bearer admin
+token as bulk seeding. Admin routes remain disabled if no token is configured.
+For local inspection, run `../.venv/bin/python monitoring.py` from `backend`.
+The CLI prints sanitized alerts and exits nonzero for critical incidents.
+
+`.github/workflows/system-monitor.yml` runs independently every three hours and
+supports manual runs. It uses the **existing** read-only
+`COURTCAST_BACKUP_DATABASE_URL` repository secret, reads saved signals and quota
+counters, and fails on critical incidents so GitHub Actions' failure
+notifications can alert the repository owner. Warnings appear in run logs and
+annotations without failing the job. This reuses the already configured backup
+connection; no admin token, encryption key, or paid API key is needed. Keep
+GitHub Actions failure notifications enabled. Publishing the workflow to the
+default branch activates its schedule; schedules may be delayed by GitHub.
+
+While the app only runs on a local computer, `MONITOR_REQUIRE_SCHEDULER=false`
+avoids claiming an intentionally stopped computer is a failed always-on host.
+After hosting, set this to **true** in both backend settings and the GitHub
+repository's Actions **variable** `MONITOR_REQUIRE_SCHEDULER`. Missing/stale job
+reports then become critical after `MONITOR_STALE_JOB_SECONDS=10800` (3 hours).
+Production defaults to requiring scheduler reports unless explicitly overridden.
+A run that stays in progress past that window is also flagged. Missing box
+scores stay pending; `MONITOR_PENDING_GRACE_DAYS=3` raises a warning for old
+pending results without assuming whether the cause is a DNP, postponement, or
+feed problem. No result is fabricated or excluded to silence that warning.
+
 Run optional live persistence tests with
 `COURTCAST_INTEGRATION_TESTS=1 ../.venv/bin/python -m unittest test_postgres_storage -v`
 from `backend`. Tests create and remove a disposable private schema, leaving the

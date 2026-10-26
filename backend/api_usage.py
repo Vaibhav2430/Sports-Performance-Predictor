@@ -19,9 +19,10 @@ import database
 
 
 class UsageLimitExceeded(RuntimeError):
-    def __init__(self, detail, retry_after=60):
+    def __init__(self, detail, retry_after=60, budget_name=None):
         self.detail = detail
         self.retry_after = max(1, int(retry_after))
+        self.budget_name = budget_name
         super().__init__(detail)
 
 
@@ -93,7 +94,7 @@ class SharedUsage:
                     row = connection.execute('SELECT used FROM budgets WHERE key=?', (key,)).fetchone()
                     used = row[0] if row else 0
                     if budget.cost and used + budget.cost > budget.maximum:
-                        raise UsageLimitExceeded('Shared usage limit reached. Please try again later.', int(expires - now) + 1)
+                        raise UsageLimitExceeded('Shared usage limit reached. Please try again later.', int(expires - now) + 1, budget.name)
                     counters.append((key, budget.cost, expires))
                 if resource:
                     active = connection.execute('SELECT COUNT(*) FROM leases WHERE resource=?', (resource,)).fetchone()[0]
@@ -134,6 +135,20 @@ class SharedUsage:
                 connection.execute('INSERT INTO snapshots VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET payload=excluded.payload', (key, json.dumps(payload, allow_nan=False)))
         except (sqlite3.Error, ValueError) as exc:
             raise UsageStoreUnavailable('Could not save shared line cache') from exc
+
+    def update_snapshot(self, key, change):
+        """Atomic read/modify/write, shared by local and PostgreSQL workers."""
+        try:
+            with self.connect() as connection:
+                connection.execute('BEGIN IMMEDIATE')
+                row = connection.execute('SELECT payload FROM snapshots WHERE key=?', (key,)).fetchone()
+                updated = change(json.loads(row[0]) if row else {})
+                connection.execute('INSERT INTO snapshots VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET payload=excluded.payload',
+                                   (key, json.dumps(updated, allow_nan=False)))
+                connection.commit()
+                return updated
+        except (sqlite3.Error, ValueError) as exc:
+            raise UsageStoreUnavailable('Could not save monitoring state') from exc
 
     def renew(self, token, ttl):
         try:
@@ -243,12 +258,17 @@ def reserve_odds_request(markets=None):
     # Event-list requests are free; paid event odds cost at most one credit
     # per requested market for our single-region DraftKings filter.
     cost = len(set(markets.split(','))) if markets else 0
-    return store().acquire([
-        Budget('odds-http-minute', setting('ODDS_API_REQUESTS_PER_MINUTE', 10), 60),
-        Budget('odds-http-day', setting('ODDS_API_REQUESTS_PER_DAY', 40), 86400),
-        Budget('odds-credit-reservations-day', setting('ODDS_API_DAILY_CREDIT_BUDGET', 15), 86400, cost),
-        Budget('odds-credit-reservations-month', setting('ODDS_API_MONTHLY_CREDIT_BUDGET', 500), 1, cost, calendar_month=True),
-    ])
+    try:
+        return store().acquire([
+            Budget('odds-http-minute', setting('ODDS_API_REQUESTS_PER_MINUTE', 10), 60),
+            Budget('odds-http-day', setting('ODDS_API_REQUESTS_PER_DAY', 40), 86400),
+            Budget('odds-credit-reservations-day', setting('ODDS_API_DAILY_CREDIT_BUDGET', 15), 86400, cost),
+            Budget('odds-credit-reservations-month', setting('ODDS_API_MONTHLY_CREDIT_BUDGET', 500), 1, cost, calendar_month=True),
+        ])
+    except UsageLimitExceeded as exc:
+        import monitoring
+        monitoring.odds_limit(exc.budget_name, exc.retry_after)
+        raise
 
 
 def enrichment(client):
