@@ -63,7 +63,7 @@ function PropCard({ stat, p, gameLog, line }) {
       <div className="prop-number">{p.prediction}</div>
       <div className="prop-sublabel">{p.basis ? 'DraftKings-based estimate' : 'Projection'}</div>
 
-      {hasLine && (
+      {hasLine ? (
         <div className="pp-line">
           <span className="pp-label">DraftKings Line</span>
           {!isPush && (
@@ -78,6 +78,8 @@ function PropCard({ stat, p, gameLog, line }) {
             </span>
           )}
         </div>
+      ) : (
+        <div className="pp-line"><span className="pp-label">DraftKings Line</span><span className="pp-score">Unavailable</span></div>
       )}
 
       {/* Hit rate dots — relative to line when available */}

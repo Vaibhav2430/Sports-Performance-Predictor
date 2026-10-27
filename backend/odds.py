@@ -29,8 +29,10 @@ _cache:       dict = {}
 _cache_time:  dict = {}
 _matchups: dict = {}
 _game_dates:  dict = {}   # {league: {player_name: "YYYY-MM-DD"}}
-CACHE_TTL = api_usage.setting('ODDS_CACHE_TTL_SECONDS', 21600)  # six-hour free-plan cache
+CACHE_TTL = api_usage.setting('ODDS_CACHE_TTL_SECONDS', 1800)  # original 30-minute refresh
+CACHE_POLICY = 'draftkings-daily-coverage-v2'
 _line_times: dict = {}
+_line_status: dict = {}
 
 
 def _commence_time_to_game_date(commence_time: str) -> str | None:
@@ -82,7 +84,7 @@ def _download_lines(league: str) -> dict:
         raise
 
     # Retain already-saved upcoming lines if a refresh only fits part of the
-    # free-plan budget. Each player's own observation timestamp is preserved.
+    # monthly budget. Each player's own observation timestamp is preserved.
     result = {p: dict(lines) for p, lines in _cache.get(key, {}).items()}
     game_dates = dict(_game_dates.get(key, {}))
     matchups = dict(_matchups.get(key, {}))
@@ -139,12 +141,14 @@ def _download_lines(league: str) -> dict:
                             refreshed_players.add(player)
                         result[player][stat] = float(line)
                         line_times[player] = time.time()
-                        matchups[player] = {"home_team": event.get("home_team"), "away_team": event.get("away_team"), "date": game_date}
+                        matchups[player] = {"home_team": event.get("home_team"), "away_team": event.get("away_team"), "date": game_date, "commence_time": event.get("commence_time")}
                         seen.add(player)
                         if game_date:
                             game_dates[player] = game_date
 
     return {"lines": result, "dates": game_dates, "matchups": matchups, "line_times": line_times,
+            "cache_policy": CACHE_POLICY,
+            "status": "quota_limited" if limited else ("upstream_unavailable" if failed else "available"),
             "next_refresh": now + (3600 if limited else CACHE_TTL),
             'monitor_counts': {'attempted': attempted, 'failed': failed, 'deferred': limited}}
 
@@ -158,7 +162,13 @@ def _activate(key, snapshot):
     _matchups[key] = {p: value for p, value in snapshot.get('matchups', {}).items() if p in valid}
     _line_times[key] = {p: value for p, value in snapshot.get('line_times', {}).items() if p in valid}
     _cache_time[key] = snapshot.get('next_refresh', 0)
+    _line_status[key] = snapshot.get('status') or ('quota_limited' if snapshot.get('monitor_counts', {}).get('deferred') else 'available')
     return valid
+
+
+def _snapshot_is_fresh(snapshot):
+    # Refresh old six-hour/daily-blocked snapshots once under the restored policy.
+    return snapshot.get('cache_policy') == CACHE_POLICY and time.time() < snapshot.get('next_refresh', 0)
 
 
 def fetch_lines(league: str) -> dict:
@@ -170,7 +180,7 @@ def fetch_lines(league: str) -> dict:
         snapshot = storage.snapshot('odds-lines-' + key)
         if snapshot:
             _activate(key, snapshot)
-            if time.time() < snapshot.get('next_refresh', 0):
+            if _snapshot_is_fresh(snapshot):
                 return _cache[key]
         try:
             reservation = storage.acquire(resource='odds-refresh-' + key, capacity=1)
@@ -181,20 +191,24 @@ def fetch_lines(league: str) -> dict:
             snapshot = storage.snapshot('odds-lines-' + key)
             if snapshot:
                 _activate(key, snapshot)
-                if time.time() < snapshot.get('next_refresh', 0):
+                if _snapshot_is_fresh(snapshot):
                     return _cache[key]
             try:
                 with monitoring.job('odds-' + key) as metrics:
                     snapshot = _download_lines(key)
                     metrics.update(snapshot.get('monitor_counts', {}))
-            except Exception:
+            except Exception as exc:
                 # Share the retry delay too, so repeated searches cannot cause
                 # a storm of failed upstream requests during an outage/quota block.
                 snapshot = dict(snapshot or {})
+                snapshot['status'] = ('quota_limited' if isinstance(exc, api_usage.UsageLimitExceeded)
+                                      else 'upstream_unavailable')
+                snapshot['cache_policy'] = CACHE_POLICY
                 snapshot['next_refresh'] = time.time() + 300
             storage.save_snapshot('odds-lines-' + key, snapshot)
             return _activate(key, snapshot)
     except Exception:
+        _line_status[key] = "upstream_unavailable"
         return _cache.get(key, {})
 
 
@@ -202,7 +216,15 @@ def get_line_metadata(player_name: str, league: str) -> dict:
     league = league.upper()
     key = _resolve_player_key(player_name, _cache.get(league, {}))
     observed = _line_times.get(league, {}).get(key)
-    return {"lines_last_updated": datetime.fromtimestamp(observed, GAME_DATE_TZ).isoformat() if observed else None}
+    status = _line_status.get(league, "available")
+    messages = {
+        "quota_limited": "DraftKings refresh paused at the shared usage limit. Lines may be unavailable until the limit resets.",
+        "upstream_unavailable": "DraftKings lines are temporarily unavailable. Please try again later.",
+    }
+    return {"lines_last_updated": datetime.fromtimestamp(observed, GAME_DATE_TZ).isoformat() if observed else None,
+            "lines_status": "available" if key else (status if status in messages else "not_posted"),
+            "lines_message": messages.get(status) if status in messages else
+                (None if key else "No DraftKings props were returned for this player today. Props may not be posted yet or the player may not have a game today.")}
 
 
 def _resolve_player_key(player_name: str, all_lines: dict) -> str | None:
@@ -246,3 +268,16 @@ def get_player_matchup(player_name: str, league: str) -> dict:
     all_lines = fetch_lines(league)
     key = _resolve_player_key(player_name, all_lines)
     return _matchups.get(league, {}).get(key, {})
+
+
+def player_game_started(player_name: str, league: str) -> bool:
+    """Use cached start metadata to avoid saving forecasts after tipoff."""
+    league = league.upper()
+    key = _resolve_player_key(player_name, _cache.get(league, {}))
+    stamp = _matchups.get(league, {}).get(key, {}).get('commence_time')
+    if not stamp:
+        return False  # Legacy snapshots have no start metadata.
+    try:
+        return datetime.fromisoformat(stamp.replace('Z', '+00:00')).timestamp() <= time.time()
+    except (ValueError, TypeError):
+        return False

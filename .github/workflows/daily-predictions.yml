@@ -1,0 +1,45 @@
+name: CourtCast daily predictions
+
+on:
+  schedule:
+    # Recheck late-posted props and retry failed players without needing a Mac.
+    - cron: '13,43 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: courtcast-daily-predictions
+  cancel-in-progress: false
+
+jobs:
+  collect-and-grade:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      STORAGE_BACKEND: postgres
+      DATABASE_URL: ${{ secrets.COURTCAST_DATABASE_URL }}
+      ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+      ODDS_CACHE_TTL_SECONDS: '1800'
+      # Cloud runs report twice an hour; the Mac backend can be off.
+      MONITOR_REQUIRE_SCHEDULER: 'true'
+    steps:
+      - name: Check private configuration
+        run: |
+          if [ -z "$DATABASE_URL" ] || [ -z "$ODDS_API_KEY" ]; then
+            echo '::error::Configure COURTCAST_DATABASE_URL and ODDS_API_KEY as repository Actions secrets.'
+            exit 1
+          fi
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - name: Install collection dependencies
+        run: python -m pip install -r backend/requirements.txt
+      - name: Save posted-player forecasts and grade completed games
+        run: python backend/daily_coverage.py

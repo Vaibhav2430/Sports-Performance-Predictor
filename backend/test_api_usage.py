@@ -105,7 +105,7 @@ class UsageTests(unittest.TestCase):
             restarted.acquire([api_usage.Budget('persistent', 1, 3600)])
 
     def test_paid_request_is_blocked_before_network_io(self):
-        with patch.object(api_usage, 'store', return_value=self.store), patch.dict(os.environ, {'ODDS_API_DAILY_CREDIT_BUDGET': '3'}), patch.object(odds.requests, 'get') as get:
+        with patch.object(api_usage, 'store', return_value=self.store), patch.dict(os.environ, {'ODDS_API_MONTHLY_CREDIT_BUDGET': '3'}), patch.object(odds.requests, 'get') as get:
             odds._paid_get('https://example.invalid/odds', params={'markets': 'player_points,player_assists,player_rebounds'}, timeout=10)
             with self.assertRaises(api_usage.UsageLimitExceeded):
                 odds._paid_get('https://example.invalid/odds', params={'markets': 'player_points'}, timeout=10)

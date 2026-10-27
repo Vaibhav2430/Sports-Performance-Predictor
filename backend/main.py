@@ -4,6 +4,7 @@ import logging
 import threading
 import database
 import season_accuracy
+import daily_coverage
 import backups
 import monitoring
 from web_config import allowed_origins
@@ -39,11 +40,14 @@ logger = logging.getLogger(__name__)
 
 def _seed_if_needed():
     """Retry each league independently; _seed_all skips saved player/game pairs."""
+    results = {}
     for league in ("NBA", "WNBA"):
         try:
-            _seed_all(league)
+            results[league] = _seed_all(league)
         except Exception:
+            results[league] = {'failed': 1}
             logger.exception("Automatic predictions failed for %s; will retry", league)
+    return results
 
 
 def _prediction_worker(stop):
@@ -54,7 +58,7 @@ def _prediction_worker(stop):
             except Exception:
                 logger.exception("Automatic box-score grading failed; will retry")
             _seed_if_needed()
-        if stop.wait(3600):
+        if stop.wait(900):
             break
 
 
@@ -445,7 +449,7 @@ def _predict_and_record(player: str, league: str, minimum_minutes: float = 0):
     is_out = inj_status and inj_status.lower() == "out"
     recent = result.get("game_log", [])[:5]
     enough_minutes = not recent or sum(g["MIN"] for g in recent) / len(recent) >= minimum_minutes
-    if p and not is_out and enough_minutes:
+    if p and not is_out and enough_minutes and not odds.player_game_started(player, league):
         game_date = odds.get_player_game_date(player, league)
         tracker.log_prediction(result["player"], p["id"], league, lines, result["predictions"],
                                injury_status=inj_status, game_date=game_date,
@@ -599,7 +603,7 @@ def _resolve_all_locked():
                 if not p:
                     metrics['failed'] += 1
                     continue
-                df = wnba_model.fetch_game_log(p["id"])
+                df = wnba_model.fetch_game_log(p["id"], season=entry["date"][:4], include_postseason=True)
 
             if df.empty:
                 continue
@@ -718,9 +722,11 @@ def _seed_all(league: str, reservation=None):
                 result = _seed_all_players(league)
                 if isinstance(result, dict):
                     metrics.update(result)
+                return result
     except api_usage.UsageLimitExceeded:
         monitoring.deferred('seed-' + league)
         logger.info("Bulk %s predictions deferred by shared usage protection", league)
+        return {'deferred': True}
     except api_usage.UsageStoreUnavailable:
         with monitoring.job('seed-' + league):
             raise
@@ -730,13 +736,21 @@ def _seed_all_players(league: str):
     from datetime import date
     all_lines = odds.fetch_lines(league)
     metrics = {'attempted': 0, 'generated': 0, 'failed': 0}
+    line_status = odds._line_status.get(league)
+    if line_status == 'quota_limited':
+        metrics['deferred'] = True
+    elif line_status == 'upstream_unavailable' and not all_lines:
+        metrics.update(attempted=1, failed=1)
     if not all_lines:
+        daily_coverage.record(league, all_lines, metrics)
         return metrics
     log = tracker.load_log()
     logged_pairs = {(e["player"], e["date"]) for e in log if e.get("league") == league and tracker.has_valid_predictions(e)}
 
     finder = nba_find_player if league == "NBA" else wnba_model.find_player
     for pp_name in all_lines:
+        if odds.player_game_started(pp_name, league):
+            continue
         metrics['attempted'] += 1
         try:
             player = finder(pp_name)
@@ -745,8 +759,18 @@ def _seed_all_players(league: str):
             if (player_name, game_date) in logged_pairs:
                 metrics['attempted'] -= 1
                 continue
-            with api_usage.prediction():
-                _predict_and_record(pp_name, league, minimum_minutes=15)
+            # A large NBA slate can exceed the interactive per-minute budget.
+            # Wait for short admission limits once, rather than abandon the rest
+            # of today's players until the next collection run.
+            for attempt in range(2):
+                try:
+                    with api_usage.prediction():
+                        _predict_and_record(pp_name, league, minimum_minutes=15)
+                    break
+                except api_usage.UsageLimitExceeded as exc:
+                    if attempt or exc.retry_after > 60:
+                        raise
+                    time.sleep(exc.retry_after)
             metrics['generated'] += 1
         except (api_usage.UsageLimitExceeded, api_usage.UsageStoreUnavailable) as exc:
             logger.info("Bulk %s predictions paused at shared budget; remaining players will retry on the next scheduled run", league)
@@ -757,6 +781,7 @@ def _seed_all_players(league: str):
         except Exception:
             metrics['failed'] += 1
             logger.exception("Prediction failed for %s player %s; will retry", league, pp_name)
+    daily_coverage.record(league, all_lines, metrics)
     return metrics
 
 

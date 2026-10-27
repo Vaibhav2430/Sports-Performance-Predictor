@@ -21,7 +21,7 @@ class SchedulingTests(unittest.TestCase):
             main._prediction_worker(stop)
         self.assertEqual(seed.call_count, 2)
         self.assertEqual(resolve.call_count, 2)
-        stop.wait.assert_called_with(3600)
+        stop.wait.assert_called_with(900)
 
     def test_schedule_failure_is_not_empty_day(self):
         with patch.object(schedule.requests, 'get') as get:

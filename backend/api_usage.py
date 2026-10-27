@@ -246,7 +246,7 @@ def prediction(client=None):
 
 
 def reserve_bulk(league, admin=False):
-    budgets = [Budget('admin-bulk-hour', setting('ADMIN_BULK_RUNS_PER_HOUR', 2), 3600)] if admin else [Budget('automatic-bulk-' + league, 1, 3600)]
+    budgets = [Budget('admin-bulk-hour', setting('ADMIN_BULK_RUNS_PER_HOUR', 2), 3600)] if admin else [Budget('automatic-bulk-' + league, 1, 900)]
     return store().acquire(budgets, 'bulk-seeding', 1)
 
 
@@ -257,12 +257,10 @@ def reserve_resolution():
 def reserve_odds_request(markets=None):
     # Event-list requests are free; paid event odds cost at most one credit
     # per requested market for our single-region DraftKings filter.
+    # Do not impose per-day or per-minute slate limits: fetch every posted game.
     cost = len(set(markets.split(','))) if markets else 0
     try:
         return store().acquire([
-            Budget('odds-http-minute', setting('ODDS_API_REQUESTS_PER_MINUTE', 10), 60),
-            Budget('odds-http-day', setting('ODDS_API_REQUESTS_PER_DAY', 40), 86400),
-            Budget('odds-credit-reservations-day', setting('ODDS_API_DAILY_CREDIT_BUDGET', 15), 86400, cost),
             Budget('odds-credit-reservations-month', setting('ODDS_API_MONTHLY_CREDIT_BUDGET', 500), 1, cost, calendar_month=True),
         ])
     except UsageLimitExceeded as exc:

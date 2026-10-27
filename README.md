@@ -138,7 +138,7 @@ GET /games/today
 GET /wnba/games/today
 ```
 
-Automatic predictions run when the backend starts and every hour afterward.
+Automatic predictions run when the backend starts and every 15 minutes afterward.
 Each league is retried independently, and saved player/game predictions are
 skipped. Keep the backend running and the computer awake for ongoing checks;
 starting it again checks the currently available lines, not historical ones.
@@ -158,35 +158,30 @@ Historical injuries and opponent ratings are excluded, so this is not an exact
 replay of the live model. It does not alter the live prediction log.
 
 The backtest report records average error and the fraction within ±5 points,
-±2 assists, and ±3 rebounds. These are not betting win rates. The top NBA accuracy
-cards start with this frozen baseline and add newly graded live forecasts after
-its last included date; WNBA cards show saved over/under results. Outputs: `backend/evaluation_results/nba_season/report.json`
+±2 assists, and ±3 rebounds. These are not betting win rates. Both NBA and WNBA header accuracy cards show
+saved over/under results instead of this reconstructed baseline. Outputs: `backend/evaluation_results/nba_season/report.json`
 and `predictions.csv`, including actuals, predictions, and training cutoff dates.
 
 Both leagues share prediction adjustments, injury checks, forecast logging,
-automatic seeding, and hourly box-score grading. Grading runs before new seeding
-on startup and each hourly pass, using the Eastern game day. A prediction is
+automatic seeding, and recurring box-score grading. Grading runs before new seeding
+on startup and each scheduled pass, using the Eastern game day. A prediction is
 graded only against its exact game date; missing or incomplete box scores stay
 pending and retry instead of being matched to an adjacent day. Only completed
 past game days are graded, so the previous day's available results are included
-on the next hourly pass while the backend runs.
+on the next scheduled pass while the backend runs.
 
-The NBA header requests `/accuracy?league=NBA&metric=within_margin`. It adds raw
-success/sample counts from new saved NBA forecasts to `nba-accuracy-baseline`,
-a frozen Supabase document (local copy: `backend/data_cache/nba/accuracy_baseline.json`).
-All dates through the baseline's `date_end` are excluded from live additions to
-avoid double counting. Each new player/game contributes at most once, excluded
-records never count, and unfinished forecasts remain pending. The baseline and
-live samples must use the same ±5/±2/±3 margins. Counts are summed before calculating
-percentages; percentages are not averaged. The response identifies baseline and
-live counts separately, and limits additions to the matching NBA season.
+Both headers request `/accuracy?league=NBA&metric=over_under` (or `league=WNBA`).
+They display the same saved-pick win-rate calculation: the model projection
+selects over or under the posted DraftKings line, and the actual box score
+determines whether that pick won. Only saved markets with valid projections,
+lines, and results count; exclusions, tied model projections, and injury voids
+follow the shared over/under grader. Counts are summed before calculating each
+stat's percentage. Headers refresh each minute and on returning to the page.
 
-Both headers refresh each minute and on returning to the page. The NBA hover
-text identifies the historical baseline and new saved results; the visual layout
-is unchanged. `/accuracy/backtest` still returns the original reconstruction
-alone, while `/accuracy?league=NBA` retains the saved over/under metric used by
-leaderboards. The historical reconstruction remains separate from live forecast
-records: combined margin accuracy is not a pure live-model betting win rate.
+The historical reconstruction stays available separately at `/accuracy/backtest`.
+The optional `/accuracy?league=NBA&metric=within_margin` endpoint still combines
+`nba-accuracy-baseline` with newer saved forecasts using ±5/±2/±3 error margins,
+without double-counting baseline dates. It is not used by the header cards.
 
 NBA predictions now share league-wide regular-season box-score snapshots across
 players. Live requests have a time limit and can use a labeled saved snapshot
@@ -238,11 +233,10 @@ Defaults (all configurable in `backend/.env.example`):
 | Player forecasts, both leagues combined | 10/minute per IP, 60/minute globally, 600/hour globally |
 | Concurrent player forecasts, including scheduled ones | 2 |
 | Bulk runs requested by admins | 2/hour, one bulk job at a time |
-| Automatic bulk seeding | Once/hour per league, shared across workers |
+| Automatic bulk seeding | Once/15 minutes per league, shared across workers |
 | Matchup, schedule, roster-search, rating requests | 30/minute per IP, 120/minute globally, 4 concurrent |
-| Odds API HTTP calls, including scheduled ones | 10/minute, 40/day |
-| Conservatively reserved odds credits, both leagues combined | 15/day, 500/calendar month |
-| DraftKings line cache | 6 hours, shared across workers and restarts |
+| Conservatively reserved odds credits, both leagues combined | 500/calendar month; no app daily cap |
+| DraftKings line cache | 30 minutes, shared across workers and restarts |
 
 Limits use fixed UTC time windows; they can admit a burst across a window
 boundary. They persist across backend restarts. Job leases renew while work runs
@@ -258,12 +252,12 @@ to include earlier account usage; they never reduce local reservations. These
 reservations are conservative estimates, not the provider's billing ledger.
 Monitor remaining provider credits, especially if other apps share the key.
 
-Only today's events are fetched for props, in game-time order. The free budget
-cannot cover continuously refreshed lines for every game: up to five complete
-three-market event requests fit the daily cap, including repeated refreshes.
+Only today's events are fetched for props, in game-time order. Every returned
+event is requested, subject to the remaining monthly allowance and provider
+availability; no app daily-credit or HTTP-count cap truncates the slate.
 Saved upcoming lines remain available when refreshes are blocked, and the UI
 shows when each player's lines were obtained. Yesterday's lines are removed.
-Schedules and team-rating refreshes are independent of this six-hour cache.
+Schedules and team-rating refreshes are independent of this 30-minute cache.
 Failed refreshes share a retry delay so searches do not hammer the provider.
 If a bulk run exhausts a budget, remaining
 players are deferred to the next scheduled run. Read-only accuracy/leaderboard
@@ -414,10 +408,8 @@ The Odds API's normal response headers (`x-requests-used` and
 `x-requests-remaining`) and `OUT_OF_USAGE_CREDITS` error code track provider quota.
 Existing shared local budgets are also inspected, including when the next
 three-market request cannot fit the remaining allowance. **No paid probes are
-sent by monitoring.** The daily allowance being used up is a warning; monthly
-exhaustion, rejected credentials, or failed jobs are critical. Low provider
-credits warn at `MONITOR_LOW_CREDITS=50`. Monthly/daily incidents expire with
-their UTC quota windows. Provider numbers are the last observed response, not
+sent by monitoring.** Monthly exhaustion, rejected credentials, or failed jobs are critical. Low provider
+credits warn at `MONITOR_LOW_CREDITS=50`. Monthly incidents expire with their UTC quota window. Provider numbers are the last observed response, not
 an independently polled live balance.
 
 `GET /health` gives only the aggregate status. Database unavailability returns
@@ -458,3 +450,93 @@ production `courtcast` records untouched.
 Run the regular offline suite with `STORAGE_BACKEND=local .venv/bin/python -m
 unittest discover -s backend -p 'test_*.py'` from the repository root. The explicit
 local setting prevents tests from using a real database configured in `.env`.
+
+### Diagnosing missing DraftKings lines and exporting live forecasts
+
+`/predict` attaches `lines` and `lines_last_updated` from `odds.py` to the model
+response; `App.jsx` passes `lines` into `PropCards.jsx`. Missing stat lines now
+show **DraftKings Line — Unavailable**. The response also includes a safe
+`lines_status` and `lines_message`, distinguishing a shared usage limit from a
+provider failure or no returned props. Saved lines can still be displayed while
+a refresh is blocked. These messages do not include provider URLs or API keys.
+
+The original 30-minute line refresh is restored. App daily-credit, daily HTTP,
+and per-minute odds-request caps are removed, including enforcement of their
+old saved counters. Old six-hour or daily-blocked snapshots refresh once on the
+next line lookup after restarting the updated backend. The 500-credit monthly
+cap remains shared across both leagues; provider availability and monthly
+credits still determine which posted lines can be returned. Cached lines are
+preserved if a refresh fails or reaches that monthly cap.
+
+Automatic seeding starts from players returned by DraftKings. Predictions without
+lines are not saved for over/under grading, and each saved forecast is graded
+only for stats that had a posted line. All applicable injury and minutes filters
+continue to apply.
+
+The backend worker grades past games and seeds forecasts on startup, then waits
+15 minutes after each pass. It runs only while the backend process is alive.
+The GitHub monitoring workflow checks saved job state every three hours; it does
+not run prediction generation or grading.
+
+Export live NBA records from the **configured storage backend** with:
+
+```bash
+.venv/bin/python backend/export_predictions.py --season 2026-27 \
+  --output backend/evaluation_results/exports/nba_2026-27_live_predictions.json
+```
+
+The JSON separates graded, excluded, and pending player-games and preserves
+per-stat lines, forecasts, actuals, injury flags, timestamps, and model versions.
+Postgres mode reads `courtcast.predictions`; local mode reads
+`backend/predictions_log.json`. A database failure stops the export instead of
+silently substituting the older local file. No odds requests or grading writes
+are performed. The October-through-June date filter does not identify game type;
+source records have no regular-season/playoff marker. For hit-rate analysis,
+apply per-stat validity checks, prediction ties, actual pushes, and early-exit
+voids before choosing a minimum sample size.
+
+`backend/evaluation_results/nba_season/predictions.csv` is a reconstructed,
+history-only backtest. It has no historical sportsbook lines and cannot be used
+as a live DraftKings over/under hit-rate record.
+
+WNBA grading includes regular-season and postseason box scores for the saved
+game year, so completed Finals predictions can resolve. Model training continues
+to use regular-season history. Grading preserves the original posted lines and
+forecasts and matches only the saved Eastern game date.
+
+
+## Daily cloud prediction coverage
+
+`.github/workflows/daily-predictions.yml` runs `backend/daily_coverage.py` every
+30 minutes using GitHub-hosted runners. It also supports a manual run. The Mac
+and web app can be off. GitHub schedules can be delayed; this is recurring
+collection, not a continuously running web host. Scheduled workflows must be on
+the repository's default branch before GitHub activates them.
+
+Configure these **encrypted Actions secrets**, never repository files:
+
+- `COURTCAST_DATABASE_URL`: the backend's write-capable PostgreSQL connection.
+  The existing backup connection is read-only and cannot save forecasts.
+- `ODDS_API_KEY`: the backend's Odds API key.
+
+The collector requires PostgreSQL; it refuses to silently use an ephemeral
+runner's local JSON file. It reuses shared line snapshots, quota counters,
+renewing job leases, and first-forecast deduplication. Separate Mac/cloud workers
+cannot overwrite an original forecast. Short prediction admission delays are
+retried once in the same run, and incomplete players retry on later runs.
+Known game start times prevent forecasts being saved after tipoff.
+
+Per-date snapshots named `daily-coverage-NBA-YYYY-MM-DD` and
+`daily-coverage-WNBA-YYYY-MM-DD` retain the players observed with posted lines,
+which have saved forecasts, and which are missing. A posted player filtered out
+by the existing injury/minutes checks remains visible as missing rather than
+being falsely counted as captured. `daily-collection-latest` stores aggregate
+coverage and over/under accuracy. Job output contains aggregate counts, not keys
+or database URLs. Failures and quota blocks remain visible through monitoring;
+cloud jobs fail on critical monitoring incidents and annotate missing coverage.
+
+The 500-credit monthly cap is still shared across both leagues. Scheduling does
+not add provider credits: frequent full-slate refreshes can exhaust that allowance.
+Match any higher cap to the provider plan before changing it. This workflow does
+not buy or change a subscription and does not reconstruct missing historical
+forecasts as if they had been saved before games.
