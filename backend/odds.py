@@ -47,7 +47,10 @@ def _commence_time_to_game_date(commence_time: str) -> str | None:
 
 def _normalize(name: str) -> str:
     name = "".join(c for c in unicodedata.normalize("NFKD", name) if not unicodedata.combining(c))
-    return " ".join(name.casefold().replace(".", "").replace("'", "").replace("’", "").replace("-", " ").split())
+    parts = name.casefold().replace(".", "").replace("'", "").replace("’", "").replace("-", " ").split()
+    if parts and parts[-1] in ('jr', 'sr', 'ii', 'iii', 'iv'):
+        parts.pop()
+    return " ".join(parts)
 
 
 def _paid_get(url, *, params, timeout):
@@ -232,12 +235,8 @@ def _resolve_player_key(player_name: str, all_lines: dict) -> str | None:
         return player_name
 
     norm_target = _normalize(player_name)
-    norm_map    = {_normalize(k): k for k in all_lines}
-
-    if norm_target in norm_map:
-        return norm_map[norm_target]
-
-    return None
+    matches = [key for key in all_lines if _normalize(key) == norm_target]
+    return matches[0] if len(matches) == 1 else None
 
 
 def get_player_lines(player_name: str, league: str) -> dict:

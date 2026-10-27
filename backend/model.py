@@ -218,6 +218,12 @@ def find_player(name: str) -> dict | None:
     exact = [p for p in all_p if normalize_player_name(p["full_name"]) == nl]
     if exact:
         return exact[0]
+    # Sportsbooks can append a suffix omitted by the NBA player directory.
+    # Accept only a unique normalized match; never borrow a similar player's props.
+    from odds import _normalize
+    normalized = [p for p in all_p if _normalize(p["full_name"]) == _normalize(name)]
+    if len(normalized) == 1:
+        return normalized[0]
     partial = [p for p in all_p if nl in normalize_player_name(p["full_name"])]
     if len(partial) == 1:
         return partial[0]
