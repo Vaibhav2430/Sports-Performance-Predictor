@@ -213,6 +213,7 @@ export default function App() {
               })()}
 
               <div className="section-label">Next Game Projections</div>
+              {data.lines_message && <p className="line-cache-note" role="status">{data.lines_message}</p>}
               {data.lines_last_updated && <p className="line-cache-note">Saved DraftKings lines · as of {new Date(data.lines_last_updated).toLocaleString()}</p>}
               <PropCards predictions={data.predictions} gameLog={data.game_log} league={league} lines={data.lines ?? {}} />
 

@@ -101,10 +101,10 @@ class MonitoringTests(unittest.TestCase):
         report=monitoring.evaluate({'odds-provider':{'remaining':0,'reset_at':100},'odds-limit':{'budget':'odds-credit-reservations-month','reset_at':100}},now=101)
         self.assertFalse(any(item['code'].startswith('odds_') for item in report['alerts']))
 
-    def test_daily_cap_is_warning_while_monthly_cap_is_critical(self):
+    def test_removed_daily_cap_is_ignored_while_monthly_cap_remains(self):
         now=1000
-        report=monitoring.evaluate({},[('odds-credit-reservations-day:86400:0',15,2000)],now)
-        self.assertEqual(next(item for item in report['alerts'] if item['code']=='odds_daily_budget')['severity'],'warning')
+        report=monitoring.evaluate({'odds-limit': {'budget': 'odds-credit-reservations-day', 'reset_at': 2000}},[('odds-credit-reservations-day:86400:0',15,2000)],now)
+        self.assertNotIn('odds_daily_budget', {item['code'] for item in report['alerts']})
         report=monitoring.evaluate({},[('odds-credit-reservations-month:month:2026-10',500,2000)],now)
         self.assertEqual(report['status'],'critical')
 

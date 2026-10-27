@@ -13,7 +13,7 @@ import database
 
 logger = logging.getLogger(__name__)
 JOBS = ('seed-NBA', 'seed-WNBA', 'grading', 'scheduler', 'odds-NBA', 'odds-WNBA')
-COUNTERS = ('attempted', 'generated', 'failed', 'resolved', 'excluded', 'pending', 'eligible')
+COUNTERS = ('attempted', 'generated', 'failed', 'resolved', 'excluded', 'pending', 'eligible', 'posted', 'captured', 'missing')
 _cache = None
 _cache_until = 0
 _lock = threading.Lock()
@@ -89,7 +89,7 @@ def deferred(name):
 
 
 def odds_limit(budget, retry_after):
-    if budget not in ('odds-credit-reservations-day', 'odds-credit-reservations-month'):
+    if budget != 'odds-credit-reservations-month':
         return
     _update('odds-limit', lambda old: {'budget': budget, 'reset_at': time.time() + retry_after})
 
@@ -171,13 +171,9 @@ def evaluate(signals, budgets=(), now=None):
             monthly_used = used
             if used >= api_usage.setting('ODDS_API_MONTHLY_CREDIT_BUDGET', 500):
                 alert('odds_monthly_budget', 'critical', 'The shared monthly odds-credit budget is exhausted.')
-        elif key.startswith('odds-credit-reservations-day:') and used >= api_usage.setting('ODDS_API_DAILY_CREDIT_BUDGET', 15):
-            alert('odds_daily_budget', 'warning', 'The daily odds-credit allowance is used; refreshes resume after its UTC reset.')
     if quota.get('reset_at', 0) > now:
         if quota.get('budget') == 'odds-credit-reservations-month':
             alert('odds_monthly_budget', 'critical', 'The next request would exceed the shared monthly odds-credit budget.')
-        elif quota.get('budget') == 'odds-credit-reservations-day':
-            alert('odds_daily_budget', 'warning', 'The next request would exceed the daily odds-credit allowance.')
     severity = 'critical' if any(item['severity'] == 'critical' for item in alerts) else ('warning' if alerts else 'healthy')
     return {'status': severity, 'checked_at': datetime.fromtimestamp(now, timezone.utc).isoformat(),
             'alerts': alerts, 'jobs': {name: signals.get('job-' + name, {}) for name in JOBS},

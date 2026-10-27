@@ -186,7 +186,7 @@ def fetch_team_roster_averages(team_abbr: str) -> list[dict]:
     ]
 
 
-def fetch_game_log(player_id: str, season: str = None) -> pd.DataFrame:
+def fetch_game_log(player_id: str, season: str = None, *, include_postseason: bool = False) -> pd.DataFrame:
     params = {"season": season} if season else {}
     r = requests.get(f"{ESPN_WEB}/athletes/{player_id}/gamelog", params=params, timeout=15)
     r.raise_for_status()
@@ -205,7 +205,8 @@ def fetch_game_log(player_id: str, season: str = None) -> pd.DataFrame:
 
     rows = []
     for season_type in data.get("seasonTypes", []):
-        if "Regular" not in season_type.get("displayName", ""):
+        section_name = season_type.get("displayName", "")
+        if "Regular" not in section_name and not (include_postseason and "Postseason" in section_name):
             continue
         for category in season_type.get("categories", []):
             for event in category.get("events", []):

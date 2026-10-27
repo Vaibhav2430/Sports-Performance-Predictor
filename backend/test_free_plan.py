@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 from pathlib import Path
 import os
+import time
 import tempfile
 import unittest
 from unittest.mock import Mock, patch
@@ -22,7 +23,7 @@ class FreePlanTests(unittest.TestCase):
         mocked = patch.object(api_usage, 'store', return_value=self.storage)
         mocked.start()
         self.addCleanup(mocked.stop)
-        for memory in (odds._cache, odds._cache_time, odds._line_times, odds._game_dates, odds._matchups):
+        for memory in (odds._cache, odds._cache_time, odds._line_times, odds._game_dates, odds._matchups, odds._line_status):
             cleared = patch.dict(memory, {}, clear=True)
             cleared.start()
             self.addCleanup(cleared.stop)
@@ -30,7 +31,45 @@ class FreePlanTests(unittest.TestCase):
     def snapshot(self, next_refresh=0):
         today = datetime.now(odds.GAME_DATE_TZ).date().isoformat()
         return {'lines': {'Player': {'PTS': 25}}, 'dates': {'Player': today},
-                'line_times': {'Player': 123}, 'matchups': {}, 'next_refresh': next_refresh}
+                'line_times': {'Player': 123}, 'matchups': {}, 'next_refresh': next_refresh, 'cache_policy': odds.CACHE_POLICY}
+
+    def test_full_slate_is_not_cut_off_by_old_daily_or_minute_caps(self):
+        today = datetime.now(odds.GAME_DATE_TZ).date().isoformat()
+        events = [{'id': str(i), 'commence_time': today + 'T19:00:00-04:00'} for i in range(16)]
+        event_response = Mock(status_code=200, headers={})
+        event_response.json.return_value = events
+        responses = [event_response]
+        for i in range(16):
+            response = Mock(status_code=200, headers={})
+            response.json.return_value = {'bookmakers': [{'key': 'draftkings', 'markets': [
+                {'key': 'player_points', 'outcomes': [
+                    {'name': 'Over', 'description': f'Player {i}', 'point': 20.5}]}]}]}
+            responses.append(response)
+        # Even leftover configuration and exhausted legacy counters cannot truncate the slate.
+        self.storage.acquire([api_usage.Budget('odds-http-day', 40, 86400, 40),
+                              api_usage.Budget('odds-http-minute', 10, 60, 10),
+                              api_usage.Budget('odds-credit-reservations-day', 15, 86400, 15)])
+        old_limits = {'ODDS_API_REQUESTS_PER_DAY': '1', 'ODDS_API_REQUESTS_PER_MINUTE': '1',
+                      'ODDS_API_DAILY_CREDIT_BUDGET': '1', 'ODDS_API_MONTHLY_CREDIT_BUDGET': '500'}
+        with patch.dict(os.environ, old_limits), patch.object(odds.requests, 'get', side_effect=responses) as get:
+            snapshot = odds._download_lines('NBA')
+        self.assertEqual(len(snapshot['lines']), 16)
+        self.assertEqual(get.call_count, 17)
+        self.assertFalse(snapshot['monitor_counts']['deferred'])
+        for call in get.call_args_list[1:]:
+            self.assertEqual(call.kwargs['params']['bookmakers'], 'draftkings')
+        self.assertAlmostEqual(snapshot['next_refresh'] - time.time(), odds.CACHE_TTL, delta=5)
+
+    def test_old_six_hour_snapshot_refreshes_without_deleting_saved_lines(self):
+        old = self.snapshot(1e12)
+        old.pop('cache_policy')
+        self.storage.save_snapshot('odds-lines-NBA', old)
+        new = self.snapshot(1e12)
+        new['lines']['Player']['PTS'] = 26
+        with patch.object(odds, '_download_lines', return_value=new) as download:
+            self.assertEqual(odds.fetch_lines('NBA')['Player']['PTS'], 26)
+            odds.fetch_lines('NBA')
+        download.assert_called_once()
 
     def test_month_windows_follow_calendar_including_leap_year_and_december(self):
         for start, end in [('2028-02-29', '2028-03-01'), ('2026-12-31', '2027-01-01'), ('2026-01-31', '2026-02-01')]:
@@ -107,6 +146,33 @@ class FreePlanTests(unittest.TestCase):
         with patch.object(odds, '_paid_get', side_effect=[free, paid]):
             refreshed = odds._download_lines('NBA')
         self.assertEqual(refreshed['lines']['Player'], {'PTS': 26.0})
+
+
+class LineAvailabilityTests(unittest.TestCase):
+    setUp = FreePlanTests.setUp
+    snapshot = FreePlanTests.snapshot
+
+    def test_deferred_legacy_snapshot_explains_missing_lines(self):
+        self.storage.save_snapshot('odds-lines-NBA', {
+            'lines': {}, 'next_refresh': 1e12, 'cache_policy': odds.CACHE_POLICY, 'monitor_counts': {'deferred': True}})
+        self.assertEqual(odds.get_player_lines('Player', 'NBA'), {})
+        metadata = odds.get_line_metadata('Player', 'NBA')
+        self.assertEqual(metadata['lines_status'], 'quota_limited')
+        self.assertIn('usage limit', metadata['lines_message'])
+
+    def test_provider_error_is_safe_and_preserves_saved_lines(self):
+        self.storage.save_snapshot('odds-lines-NBA', self.snapshot())
+        with patch.object(odds, '_download_lines', side_effect=RuntimeError('secret-url')):
+            odds.fetch_lines('NBA')
+        metadata = odds.get_line_metadata('Missing', 'NBA')
+        self.assertEqual(metadata['lines_status'], 'upstream_unavailable')
+        self.assertNotIn('secret-url', str(metadata))
+        self.assertEqual(odds.get_line_metadata('Player', 'NBA')['lines_status'], 'available')
+
+    def test_no_player_props_is_explicit(self):
+        self.storage.save_snapshot('odds-lines-NBA', {'lines': {}, 'next_refresh': 1e12, 'cache_policy': odds.CACHE_POLICY})
+        odds.fetch_lines('NBA')
+        self.assertEqual(odds.get_line_metadata('Player', 'NBA')['lines_status'], 'not_posted')
 
 
 if __name__ == '__main__':

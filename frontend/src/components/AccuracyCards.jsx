@@ -29,7 +29,7 @@ export default function AccuracyCards({ league }) {
       pending = true
       try {
         const { data } = await axios.get('/accuracy', {
-          params: { league, metric: league === 'NBA' ? 'within_margin' : 'over_under' },
+          params: { league, metric: 'over_under' },
           signal: controller.signal, timeout: 15000,
         })
         if (active) { setStats(data); setStale(false) }
@@ -56,15 +56,15 @@ export default function AccuracyCards({ league }) {
 
   return (
     <div className="accuracy-section">
-      <div className="accuracy-title">{league === 'NBA' ? 'Season accuracy' : 'O/U Accuracy'}</div>
+      <div className="accuracy-title">O/U Accuracy</div>
 
       <div className="accuracy-cards">
         {STATS.map(({ key, label, color }) => {
           const s = hasData ? stats.by_stat[key] : null
           const hasStatData = s && s.total > 0
           return (
-            <div key={key} className="accuracy-card" title={(league === 'NBA' && hasStatData
-              ? `${label}: ${s.correct}/${s.total} within ±${s.margin}. Historical baseline: ${s.baseline_correct}/${s.baseline_total} through ${stats.baseline_date_end ?? 'none'}; new saved results: ${s.live_correct}/${s.live_total}. ${stats.note}`
+            <div key={key} className="accuracy-card" title={(hasStatData
+              ? `${label}: ${s.correct}/${s.total} model over/under picks won against saved DraftKings lines.`
               : `${label} over/under accuracy`) + (stale ? ' Showing saved results; refresh temporarily unavailable.' : '')}>
               <div className="accuracy-card-label" style={{ color }}>{label}</div>
               <div
